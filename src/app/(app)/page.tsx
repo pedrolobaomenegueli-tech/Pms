@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Alerts } from "@/components/Alerts";
-import { CleaningButtons } from "@/components/CleaningButtons";
+import { StageButtons } from "@/components/StageButtons";
 import { addDays, formatDayMonth, formatShort, todaySP, weekday } from "@/lib/dates";
 import { findConflicts, roomStatus, ROOM_STATE_LABEL, type RoomState } from "@/lib/domain/rules";
 import { loadActiveStays, loadFeeds, loadProperties, unitLabel } from "@/lib/data";
@@ -11,11 +11,9 @@ import { cx } from "@/lib/ui";
 export const dynamic = "force-dynamic";
 
 const STATE_STYLE: Record<RoomState, string> = {
-  ocupado: "bg-sky-100 text-sky-900 ring-sky-300",
-  checkout: "bg-orange-100 text-orange-900 ring-orange-300",
+  hospedado: "bg-sky-100 text-sky-900 ring-sky-300",
   em_limpeza: "bg-yellow-100 text-yellow-900 ring-yellow-300",
-  limpeza_pendente: "bg-rose-100 text-rose-900 ring-rose-300",
-  checkin: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+  aguardando_checkin: "bg-emerald-100 text-emerald-900 ring-emerald-300",
   bloqueado: "bg-slate-200 text-slate-700 ring-slate-300",
   livre: "bg-white text-slate-700 ring-slate-200",
 };
@@ -89,21 +87,26 @@ export default async function HomePage() {
                         </div>
                         <span className="shrink-0 text-xs font-semibold uppercase">{ROOM_STATE_LABEL[s.state]}</span>
                       </div>
-                      {s.urgent && (
-                        <p className="mt-1 text-xs font-bold text-red-700">⚡ Check-in hoje: limpar antes da chegada</p>
+                      {s.notes.map((n) => (
+                        <p key={n} className="mt-1 text-xs font-bold text-orange-700">{n}</p>
+                      ))}
+                      {s.urgent && s.arrival && (
+                        <p className="mt-1 text-xs font-bold text-red-700">
+                          ⚡ Chega hoje: {s.arrival.guest_name || SOURCE_LABEL[s.arrival.source]}. Liberar o quarto antes da chegada.
+                        </p>
                       )}
                       <div className="mt-1.5 space-y-0.5">
-                        <Guest r={s.current} prefix="Hóspede" />
-                        <Guest r={s.departure} prefix="Saída" />
-                        <Guest r={s.arrival} prefix="Chegada" />
+                        {s.stay && <Guest r={s.stay} prefix={s.state === "em_limpeza" ? "Saiu" : "Hóspede"} />}
                         {s.state === "bloqueado" && s.block && (
                           <p className="text-xs">Bloqueado até {formatShort(s.block.check_out)}</p>
                         )}
-                        {!s.current && !s.arrival && s.next && <Guest r={s.next} prefix="Próxima" />}
+                        {s.state !== "hospedado" && s.state !== "aguardando_checkin" && !s.arrival && s.next && (
+                          <Guest r={s.next} prefix="Próxima" />
+                        )}
                       </div>
-                      {s.departure && !s.departure.cleaning_done_at && (
+                      {s.stay && (
                         <div className="mt-2">
-                          <CleaningButtons r={s.departure} />
+                          <StageButtons r={s.stay} />
                         </div>
                       )}
                     </div>

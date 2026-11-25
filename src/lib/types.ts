@@ -50,7 +50,8 @@ export interface Reservation {
   notes: string | null;
   status: ReservationStatus;
   cancelled_at: string | null;
-  cleaning_started_at: string | null;
+  checked_in_at: string | null;
+  checked_out_at: string | null;
   cleaning_done_at: string | null;
   ical_summary: string | null;
   ical_description: string | null;

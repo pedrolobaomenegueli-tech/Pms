@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { addDays, diffDays, isIsoDate, todaySP, weekday } from "@/lib/dates";
-import { findConflicts, visibleStays } from "@/lib/domain/rules";
+import { findConflicts, stageOf, STAGE_LABEL, visibleStays, type Stage } from "@/lib/domain/rules";
 import { loadActiveStays, loadProperties } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
 import { SOURCE_LABEL, type Reservation } from "@/lib/types";
@@ -11,6 +11,13 @@ export const dynamic = "force-dynamic";
 const DAYS = 30;
 const W = 44; // largura de um dia (px)
 const LANE = 30; // altura de uma faixa (px)
+
+const STAGE_ICON: Record<Stage, string> = {
+  aguardando_checkin: "",
+  hospedado: "🛏️ ",
+  em_limpeza: "🧹 ",
+  finalizado: "✓ ",
+};
 
 /** Distribui barras em faixas para não se sobreporem visualmente. */
 function lanes(stays: Reservation[]): { r: Reservation; lane: number }[] {
@@ -63,6 +70,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         ))}
         <span className="flex items-center gap-1"><span className="bar-bloqueio h-3 w-5 rounded" /> Bloqueio</span>
         <span className="flex items-center gap-1"><span className="h-3 w-5 rounded ring-2 ring-red-600" /> Conflito</span>
+        <span>🛏️ Hospedado</span>
+        <span>🧹 Em limpeza</span>
+        <span>✓ Finalizado</span>
       </div>
 
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
@@ -118,11 +128,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                           const left = r.check_in >= from ? (diffDays(from, r.check_in) + 0.5) * W : 0;
                           const right = r.check_out <= to ? (diffDays(from, r.check_out) + 0.5) * W : DAYS * W;
                           const isBlock = r.kind === "bloqueio";
+                          const stage = stageOf(r);
                           return (
                             <Link
                               key={r.id}
                               href={`/reservas/${r.id}`}
-                              title={`${SOURCE_LABEL[r.source]} ${isBlock ? "bloqueio" : "reserva"} ${r.check_in} → ${r.check_out}`}
+                              title={`${SOURCE_LABEL[r.source]} ${isBlock ? "bloqueio" : `reserva, ${STAGE_LABEL[stage]}`} ${r.check_in} → ${r.check_out}`}
                               className={cx(
                                 "absolute flex items-center overflow-hidden rounded-md px-1.5 text-xs font-medium whitespace-nowrap shadow-sm",
                                 isBlock ? "bar-bloqueio text-slate-800" : cx(SOURCE_BG[r.source], "text-white"),
@@ -130,7 +141,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                               )}
                               style={{ left: left + 1, width: Math.max(right - left - 2, 8), top: 4 + lane * LANE, height: LANE - 4 }}
                             >
-                              {isBlock ? "Bloqueio" : r.guest_name || SOURCE_LABEL[r.source]}
+                              {isBlock ? "Bloqueio" : `${STAGE_ICON[stage]}${r.guest_name || SOURCE_LABEL[r.source]}`}
                             </Link>
                           );
                         })}

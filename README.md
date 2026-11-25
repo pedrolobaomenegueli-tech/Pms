@@ -3,7 +3,7 @@
 Sistema de gestão de reservas para aluguel por temporada (Airbnb + Booking.com), sincronizado por iCal.
 Um único usuário. Next.js 16 (App Router) + TypeScript + Tailwind, Supabase (Postgres + Auth), hospedagem na Vercel.
 
-**Módulos:** início com estado dos quartos, calendário, reservas, limpeza/tarefas, propriedades/quartos/feeds iCal.
+**Módulos:** início com estado dos quartos (check-in, check-out e limpeza), calendário, reservas, limpeza/tarefas, propriedades/quartos/feeds iCal.
 
 ---
 
@@ -146,10 +146,29 @@ curl -X POST https://SEU-APP.vercel.app/api/sync -H "Authorization: Bearer SEU_S
 - **Conflito (overbooking)**: duas **reservas** ativas, não-eco, que se sobrepõem no mesmo quarto. Check-out e check-in no mesmo dia não é conflito. Bloqueios não geram conflito.
 - Ao salvar reserva manual, o sistema impede sobreposição com qualquer reserva ou bloqueio ativo.
 
+**Fluxo da estadia (por reserva)**
+
+Aguardando check-in → *Realizar check-in* → Hospedado → *Realizar check-out* → Em limpeza → *Finalizar limpeza* → Finalizado
+
+- Cada passo grava data e hora e pode ser desfeito (volta uma etapa).
+- Se você pular uma etapa (ex.: check-out sem ter marcado check-in), as anteriores são preenchidas junto.
+- A sincronização iCal nunca altera esses campos.
+- Bloqueios não têm fluxo.
+
 **Estado do quarto (tela inicial)**
 
-Ocupado · Check-out hoje · Em limpeza · Limpeza pendente (saída nos últimos 7 dias sem limpeza marcada) · Check-in hoje · Bloqueado · Livre.
-Quando há check-in no mesmo dia de uma saída ainda suja, o cartão mostra ⚡.
+Calculado a partir do fluxo das reservas do quarto:
+
+| Estado | Quando |
+|---|---|
+| Hospedado | há reserva com check-in feito e sem check-out. Avisos: "Sai hoje" ou "Saída atrasada". |
+| Em limpeza | check-out feito e limpeza não finalizada |
+| Aguardando check-in | reserva em andamento (chegada hoje ou antes) sem check-in. Aviso "Check-in atrasado" se a chegada foi antes de hoje. |
+| Bloqueado | bloqueio cobrindo hoje |
+| Livre | nenhum dos anteriores |
+
+Quando há chegada hoje e o quarto ainda está "Hospedado" ou "Em limpeza", o cartão mostra ⚡.
+Reservas que terminaram há mais de 7 dias com o fluxo aberto são ignoradas na tela inicial.
 
 ---
 

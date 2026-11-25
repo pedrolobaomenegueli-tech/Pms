@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ActionForm } from "@/components/ActionForm";
-import { CleaningButtons } from "@/components/CleaningButtons";
+import { StageBadge, StageButtons } from "@/components/StageButtons";
 import { SubmitButton } from "@/components/SubmitButton";
 import { UnitSelect } from "@/components/UnitSelect";
 import { addDays, formatDate, formatDayMonth, formatShort, isIsoDate, todaySP, weekday } from "@/lib/dates";
 import { visibleStays } from "@/lib/domain/rules";
 import { loadActiveStays, loadProperties, loadTasks, unitLabel } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
-import { SOURCE_LABEL, TASK_KIND_LABEL, type Task } from "@/lib/types";
+import { SOURCE_LABEL, TASK_KIND_LABEL, type Reservation, type Task } from "@/lib/types";
 import { cx } from "@/lib/ui";
 import { createTask, deleteTask, toggleTask } from "./actions";
 
@@ -19,10 +19,20 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
   const today = todaySP();
   const day = isIsoDate(sp.dia) ? sp.dia : today;
 
-  const [{ properties, units }, stays, tasks] = await Promise.all([
+  const [{ properties, units }, stays, tasks, { data: openRows }] = await Promise.all([
     loadProperties(supabase, { onlyActive: true }),
     loadActiveStays(supabase, addDays(day, -1), addDays(day, 1)),
     loadTasks(supabase, day),
+    // Quartos em limpeza de dias anteriores que ninguém finalizou
+    supabase
+      .from("reservations")
+      .select("*")
+      .eq("status", "ativa")
+      .not("checked_out_at", "is", null)
+      .is("cleaning_done_at", null)
+      .lt("check_out", day)
+      .gte("check_out", addDays(day, -14))
+      .order("check_out"),
   ]);
   const activeIds = new Set(units.map((u) => u.id));
   const vis = visibleStays(stays).filter((r) => r.kind === "reserva" && activeIds.has(r.unit_id));
@@ -36,6 +46,7 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
   const label = (id: string) => unitLabel(units, properties, id);
   const nav = (d: string) => `/limpeza?dia=${d}`;
   const pending = checkouts.filter((r) => !r.cleaning_done_at).length;
+  const openCleaning = ((openRows ?? []) as Reservation[]).filter((r) => activeIds.has(r.unit_id));
 
   return (
     <div className="space-y-4">
@@ -72,7 +83,7 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-semibold">{label(r.unit_id)}</span>
                   <span className="text-xs text-slate-500">
-                    {r.cleaning_done_at ? "✓ Limpo" : r.cleaning_started_at ? "Em limpeza" : "Sujo"}
+                    <StageBadge r={r} />
                   </span>
                 </div>
                 <Link href={`/reservas/${r.id}`} className="text-sm text-slate-600 hover:underline">
@@ -86,7 +97,7 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
                 )}
                 {r.notes && <p className="mt-1 text-xs text-slate-500">{r.notes}</p>}
                 <div className="mt-2">
-                  <CleaningButtons r={r} />
+                  <StageButtons r={r} />
                 </div>
               </li>
             );
@@ -94,16 +105,32 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
         </ul>
       </section>
 
+      {openCleaning.length > 0 && (
+        <section>
+          <h2 className="mb-2 font-semibold text-orange-700">Limpezas de dias anteriores não finalizadas ({openCleaning.length})</h2>
+          <ul className="space-y-2">
+            {openCleaning.map((r) => (
+              <li key={r.id} className="card p-3">
+                <div className="font-semibold">{label(r.unit_id)}</div>
+                <p className="text-sm text-slate-600">Saída em {formatShort(r.check_out)}</p>
+                <div className="mt-2"><StageButtons r={r} /></div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {onlyCheckins.length > 0 && (
         <section>
-          <h2 className="mb-2 font-semibold">Check-ins sem saída no dia ({onlyCheckins.length})</h2>
+          <h2 className="mb-2 font-semibold">Chegadas sem saída no mesmo quarto ({onlyCheckins.length})</h2>
           <ul className="card divide-y divide-slate-100 p-0">
             {onlyCheckins.map((r) => (
-              <li key={r.id} className="p-3 text-sm">
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
                 <Link href={`/reservas/${r.id}`} className="hover:underline">
                   <strong>{label(r.unit_id)}</strong>: {r.guest_name || SOURCE_LABEL[r.source]}
                   {r.guests ? `, ${r.guests} hósp.` : ""}
                 </Link>
+                <div className="flex items-center gap-2"><StageBadge r={r} /><StageButtons r={r} showUndo={false} /></div>
               </li>
             ))}
           </ul>

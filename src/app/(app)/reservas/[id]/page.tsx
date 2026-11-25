@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ActionForm";
-import { CleaningButtons } from "@/components/CleaningButtons";
+import { StageBadge, StageButtons, StageTimeline } from "@/components/StageButtons";
 import { SubmitButton } from "@/components/SubmitButton";
 import { diffDays, formatDate, formatDateTimeSP } from "@/lib/dates";
 import { findEchoIds } from "@/lib/domain/rules";
@@ -51,21 +51,23 @@ export default async function ReservationPage({
               Eco de outra reserva com as mesmas datas (oculto no calendário)
             </span>
           )}
-          {r.cleaning_done_at && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">Limpeza feita {formatDateTimeSP(r.cleaning_done_at)}</span>}
+          {r.kind === "reserva" && r.status === "ativa" && <StageBadge r={r} />}
         </div>
         {sp.criada && <p className="mt-2 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">Reserva criada.</p>}
       </div>
+
+      {r.kind === "reserva" && r.status === "ativa" && (
+        <div className="card space-y-3">
+          <h2 className="font-semibold">Andamento da estadia</h2>
+          <StageTimeline r={r} />
+          <StageButtons r={r} />
+        </div>
+      )}
 
       <div className="card">
         <ReservationForm properties={properties} units={units} reservation={r} />
       </div>
 
-      {r.kind === "reserva" && r.status === "ativa" && (
-        <div className="card">
-          <h2 className="mb-2 font-semibold">Limpeza da saída ({formatDate(r.check_out)})</h2>
-          <CleaningButtons r={r} />
-        </div>
-      )}
 
       {r.source === "manual" && r.status === "ativa" && (
         <form action={cancelReservation} className="card">

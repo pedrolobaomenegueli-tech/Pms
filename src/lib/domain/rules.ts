@@ -107,80 +107,128 @@ export function eventsForExport<T extends Stay>(items: T[], target: Exclude<Chan
 }
 
 // ---------------------------------------------------------------------------
+// Fluxo da estadia (por reserva)
+// ---------------------------------------------------------------------------
+
+export type Stage = "aguardando_checkin" | "hospedado" | "em_limpeza" | "finalizado";
+
+export const STAGE_LABEL: Record<Stage, string> = {
+  aguardando_checkin: "Aguardando check-in",
+  hospedado: "Hospedado",
+  em_limpeza: "Em limpeza",
+  finalizado: "Finalizado",
+};
+
+/** Próxima ação do fluxo para cada etapa. */
+export const NEXT_ACTION: Record<Stage, { step: StageStep; label: string } | null> = {
+  aguardando_checkin: { step: "checkin", label: "Realizar check-in" },
+  hospedado: { step: "checkout", label: "Realizar check-out" },
+  em_limpeza: { step: "finalizar", label: "Finalizar limpeza" },
+  finalizado: null,
+};
+
+export type StageStep = "checkin" | "checkout" | "finalizar" | "desfazer";
+
+export type StageFields = Pick<Reservation, "checked_in_at" | "checked_out_at" | "cleaning_done_at">;
+
+export function stageOf(r: StageFields): Stage {
+  if (r.cleaning_done_at) return "finalizado";
+  if (r.checked_out_at) return "em_limpeza";
+  if (r.checked_in_at) return "hospedado";
+  return "aguardando_checkin";
+}
+
+/**
+ * Campos a gravar para avançar/voltar uma etapa. Pular etapas preenche as
+ * anteriores (ex.: check-out sem check-in registrado marca os dois).
+ */
+export function applyStep(r: StageFields, step: StageStep, nowIso: string): StageFields {
+  const cur = { checked_in_at: r.checked_in_at, checked_out_at: r.checked_out_at, cleaning_done_at: r.cleaning_done_at };
+  switch (step) {
+    case "checkin":
+      return { ...cur, checked_in_at: cur.checked_in_at ?? nowIso };
+    case "checkout":
+      return { ...cur, checked_in_at: cur.checked_in_at ?? nowIso, checked_out_at: cur.checked_out_at ?? nowIso };
+    case "finalizar":
+      return {
+        checked_in_at: cur.checked_in_at ?? nowIso,
+        checked_out_at: cur.checked_out_at ?? nowIso,
+        cleaning_done_at: cur.cleaning_done_at ?? nowIso,
+      };
+    case "desfazer": {
+      const stage = stageOf(cur);
+      if (stage === "finalizado") return { ...cur, cleaning_done_at: null };
+      if (stage === "em_limpeza") return { ...cur, checked_out_at: null };
+      return { ...cur, checked_in_at: null };
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Estado do quarto (tela inicial)
 // ---------------------------------------------------------------------------
 
-export type RoomState =
-  | "ocupado"
-  | "checkout"
-  | "em_limpeza"
-  | "limpeza_pendente"
-  | "checkin"
-  | "bloqueado"
-  | "livre";
+export type RoomState = "hospedado" | "em_limpeza" | "aguardando_checkin" | "bloqueado" | "livre";
 
 export const ROOM_STATE_LABEL: Record<RoomState, string> = {
-  ocupado: "Ocupado",
-  checkout: "Check-out hoje",
+  hospedado: "Hospedado",
   em_limpeza: "Em limpeza",
-  limpeza_pendente: "Limpeza pendente",
-  checkin: "Check-in hoje",
+  aguardando_checkin: "Aguardando check-in",
   bloqueado: "Bloqueado",
   livre: "Livre",
 };
 
-export type CleaningStay = Stay & Pick<Reservation, "cleaning_started_at" | "cleaning_done_at">;
+export type FlowStay = Stay & StageFields;
 
-export interface RoomStatus<T extends CleaningStay> {
+export interface RoomStatus<T extends FlowStay> {
   state: RoomState;
-  /** Hóspede atual (ocupado) */
-  current?: T;
-  /** Reserva que sai hoje, ou saída anterior ainda sem limpeza */
-  departure?: T;
-  /** Reserva que entra hoje */
+  /** Reserva que define o estado (hospedado, em limpeza ou aguardando) */
+  stay?: T;
+  /** Chegada de hoje ainda sem check-in (quando não é a própria "stay") */
   arrival?: T;
   /** Próxima chegada depois de hoje */
   next?: T;
   block?: T;
-  /** Há check-in hoje e o quarto ainda não está limpo */
+  /** Avisos: "Sai hoje", "Saída atrasada", "Check-in atrasado" */
+  notes: string[];
+  /** Há chegada hoje e o quarto ainda não está liberado */
   urgent: boolean;
 }
 
-/** Saídas mais antigas que isso, sem limpeza marcada, são ignoradas. */
-export const PENDING_CLEANING_DAYS = 7;
+/**
+ * Reservas que terminaram há mais que isso e ficaram com o fluxo aberto
+ * (esquecidas) são ignoradas na tela inicial.
+ */
+export const OPEN_FLOW_DAYS = 7;
 
-export function roomStatus<T extends CleaningStay>(items: T[], today: string): RoomStatus<T> {
+export function roomStatus<T extends FlowStay>(items: T[], today: string): RoomStatus<T> {
   const vis = visibleStays(items);
-  const res = vis.filter((r) => r.kind === "reserva");
-  const current = res.find((r) => r.check_in < today && today < r.check_out);
-  const arrival = res.find((r) => r.check_in === today);
-  const departureToday = res.find((r) => r.check_out === today);
+  const limit = addDays(today, -OPEN_FLOW_DAYS);
+  const res = vis
+    .filter((r) => r.kind === "reserva" && r.check_out >= limit && r.check_in <= today)
+    .sort((a, b) => a.check_in.localeCompare(b.check_in));
   const block = vis.find((r) => r.kind === "bloqueio" && r.check_in <= today && today < r.check_out);
-  const next = res
-    .filter((r) => r.check_in > today)
+  const next = vis
+    .filter((r) => r.kind === "reserva" && r.check_in > today)
     .sort((a, b) => a.check_in.localeCompare(b.check_in))[0];
+  const arrivalToday = res.find((r) => r.check_in === today && stageOf(r) === "aguardando_checkin");
 
-  const limit = addDays(today, -PENDING_CLEANING_DAYS);
-  const lastPast = res
-    .filter((r) => r.check_out < today && r.check_out >= limit)
-    .sort((a, b) => b.check_out.localeCompare(a.check_out))[0];
+  const hosted = res.find((r) => stageOf(r) === "hospedado");
+  const cleaning = res.find((r) => stageOf(r) === "em_limpeza");
+  const waiting = res.find((r) => stageOf(r) === "aguardando_checkin" && today < r.check_out);
 
-  const base = { current, arrival, next, block, urgent: false };
-
-  if (current) return { ...base, state: "ocupado" };
-
-  // Se alguém saiu hoje, só essa saída importa; senão, a última saída recente
-  const candidate = departureToday ?? lastPast;
-  const dirty = candidate && !candidate.cleaning_done_at ? candidate : undefined;
-  if (dirty) {
-    const state: RoomState = dirty.cleaning_started_at
-      ? "em_limpeza"
-      : dirty === departureToday
-        ? "checkout"
-        : "limpeza_pendente";
-    return { ...base, state, departure: dirty, urgent: Boolean(arrival) };
+  const base = { next, block };
+  if (hosted) {
+    const notes = hosted.check_out === today ? ["Sai hoje"] : hosted.check_out < today ? ["Saída atrasada"] : [];
+    const arrival = arrivalToday && arrivalToday.id !== hosted.id ? arrivalToday : undefined;
+    return { ...base, state: "hospedado", stay: hosted, arrival, notes, urgent: Boolean(arrival) };
   }
-  if (arrival) return { ...base, state: "checkin", departure: departureToday };
-  if (block) return { ...base, state: "bloqueado" };
-  return { ...base, state: "livre" };
+  if (cleaning) {
+    return { ...base, state: "em_limpeza", stay: cleaning, arrival: arrivalToday, notes: [], urgent: Boolean(arrivalToday) };
+  }
+  if (waiting) {
+    return { ...base, state: "aguardando_checkin", stay: waiting, notes: waiting.check_in < today ? ["Check-in atrasado"] : [], urgent: false };
+  }
+  if (block) return { ...base, state: "bloqueado", notes: [], urgent: false };
+  return { ...base, state: "livre", notes: [], urgent: false };
 }

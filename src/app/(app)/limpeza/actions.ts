@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { isIsoDate } from "@/lib/dates";
+import { applyStep, type StageStep } from "@/lib/domain/rules";
 import { requireUser } from "@/lib/supabase/server";
 import { str, strOrNull, type ActionState } from "@/lib/ui";
 
@@ -9,18 +10,19 @@ function done() {
   revalidatePath("/", "layout");
 }
 
-export async function setCleaning(fd: FormData) {
+/** Avança ou desfaz uma etapa do fluxo da estadia. */
+export async function setStage(fd: FormData) {
   const { supabase } = await requireUser();
   const id = str(fd, "id");
-  const step = str(fd, "step");
-  const now = new Date().toISOString();
-  const patch =
-    step === "iniciar"
-      ? { cleaning_started_at: now, cleaning_done_at: null }
-      : step === "concluir"
-        ? { cleaning_done_at: now }
-        : { cleaning_started_at: null, cleaning_done_at: null };
-  const { error } = await supabase.from("reservations").update(patch).eq("id", id);
+  const step = str(fd, "step") as StageStep;
+  if (!["checkin", "checkout", "finalizar", "desfazer"].includes(step)) throw new Error("Etapa inválida");
+  const { data, error: readErr } = await supabase
+    .from("reservations")
+    .select("checked_in_at, checked_out_at, cleaning_done_at")
+    .eq("id", id)
+    .single();
+  if (readErr) throw new Error(readErr.message);
+  const { error } = await supabase.from("reservations").update(applyStep(data, step, new Date().toISOString())).eq("id", id);
   if (error) throw new Error(error.message);
   done();
 }

@@ -4,8 +4,10 @@ import {
   findConflicts,
   findEchoIds,
   findOverlapsFor,
+  applyStep,
   roomStatus,
-  type CleaningStay,
+  stageOf,
+  type FlowStay,
 } from "@/lib/domain/rules";
 import type { Kind, Source } from "@/lib/types";
 
@@ -14,8 +16,8 @@ function stay(
   source: Source,
   check_in: string,
   check_out: string,
-  extra: Partial<CleaningStay> & { kind?: Kind } = {},
-): CleaningStay {
+  extra: Partial<FlowStay> & { kind?: Kind } = {},
+): FlowStay {
   return {
     id: extra.id ?? `r${++n}`,
     unit_id: "u1",
@@ -24,7 +26,8 @@ function stay(
     check_in,
     check_out,
     status: "ativa",
-    cleaning_started_at: null,
+    checked_in_at: null,
+    checked_out_at: null,
     cleaning_done_at: null,
     ...extra,
   };
@@ -139,28 +142,87 @@ describe("validação ao salvar", () => {
   });
 });
 
+describe("fluxo da estadia", () => {
+  const empty = { checked_in_at: null, checked_out_at: null, cleaning_done_at: null };
+  const now = "2026-12-10T15:00:00.000Z";
+
+  it("avança aguardando -> hospedado -> em limpeza -> finalizado", () => {
+    expect(stageOf(empty)).toBe("aguardando_checkin");
+    const a = applyStep(empty, "checkin", now);
+    expect(stageOf(a)).toBe("hospedado");
+    const b = applyStep(a, "checkout", now);
+    expect(stageOf(b)).toBe("em_limpeza");
+    const c = applyStep(b, "finalizar", now);
+    expect(stageOf(c)).toBe("finalizado");
+  });
+
+  it("desfazer volta uma etapa de cada vez", () => {
+    const done = { checked_in_at: "a", checked_out_at: "b", cleaning_done_at: "c" };
+    const s1 = applyStep(done, "desfazer", now);
+    expect(stageOf(s1)).toBe("em_limpeza");
+    const s2 = applyStep(s1, "desfazer", now);
+    expect(stageOf(s2)).toBe("hospedado");
+    expect(s2.checked_in_at).toBe("a");
+    expect(stageOf(applyStep(s2, "desfazer", now))).toBe("aguardando_checkin");
+  });
+
+  it("check-out sem check-in registrado preenche os dois; não sobrescreve horários já gravados", () => {
+    expect(applyStep(empty, "checkout", now)).toEqual({ checked_in_at: now, checked_out_at: now, cleaning_done_at: null });
+    expect(applyStep({ ...empty, checked_in_at: "antes" }, "checkin", now).checked_in_at).toBe("antes");
+  });
+});
+
 describe("estado do quarto", () => {
   const today = "2026-12-10";
+  const T = "2026-12-10T12:00:00Z";
   it("livre", () => expect(roomStatus([], today).state).toBe("livre"));
-  it("ocupado", () => expect(roomStatus([stay("airbnb", "2026-12-08", "2026-12-12")], today).state).toBe("ocupado"));
-  it("check-out hoje, em limpeza e limpo com chegada", () => {
-    expect(roomStatus([stay("airbnb", "2026-12-08", "2026-12-10")], today).state).toBe("checkout");
-    expect(roomStatus([stay("airbnb", "2026-12-08", "2026-12-10", { cleaning_started_at: "x" })], today).state).toBe("em_limpeza");
-    const s = roomStatus(
-      [stay("airbnb", "2026-12-08", "2026-12-10", { cleaning_done_at: "x" }), stay("booking", "2026-12-10", "2026-12-12")],
+
+  it("chegada hoje ou em andamento sem check-in: aguardando", () => {
+    expect(roomStatus([stay("airbnb", "2026-12-10", "2026-12-12")], today).state).toBe("aguardando_checkin");
+    const late = roomStatus([stay("airbnb", "2026-12-08", "2026-12-12")], today);
+    expect(late.state).toBe("aguardando_checkin");
+    expect(late.notes).toEqual(["Check-in atrasado"]);
+  });
+
+  it("hospedado, com aviso de saída hoje ou atrasada", () => {
+    expect(roomStatus([stay("airbnb", "2026-12-08", "2026-12-12", { checked_in_at: T })], today)).toMatchObject({ state: "hospedado", notes: [] });
+    expect(roomStatus([stay("airbnb", "2026-12-08", "2026-12-10", { checked_in_at: T })], today).notes).toEqual(["Sai hoje"]);
+    expect(roomStatus([stay("airbnb", "2026-12-05", "2026-12-09", { checked_in_at: T })], today).notes).toEqual(["Saída atrasada"]);
+  });
+
+  it("em limpeza depois do check-out; livre depois de finalizar", () => {
+    expect(roomStatus([stay("airbnb", "2026-12-08", "2026-12-10", { checked_in_at: T, checked_out_at: T })], today).state).toBe("em_limpeza");
+    expect(roomStatus([stay("airbnb", "2026-12-08", "2026-12-10", { checked_in_at: T, checked_out_at: T, cleaning_done_at: T })], today).state).toBe("livre");
+  });
+
+  it("virada: hóspede ainda no quarto ou limpeza aberta com chegada hoje é urgente", () => {
+    const hosted = roomStatus(
+      [stay("airbnb", "2026-12-08", "2026-12-10", { checked_in_at: T }), stay("booking", "2026-12-10", "2026-12-12", { id: "chega" })],
       today,
     );
-    expect(s.state).toBe("checkin");
+    expect(hosted).toMatchObject({ state: "hospedado", urgent: true });
+    expect(hosted.arrival?.id).toBe("chega");
+    const cleaning = roomStatus(
+      [stay("airbnb", "2026-12-08", "2026-12-10", { checked_in_at: T, checked_out_at: T }), stay("booking", "2026-12-10", "2026-12-12")],
+      today,
+    );
+    expect(cleaning).toMatchObject({ state: "em_limpeza", urgent: true });
   });
-  it("virada (sai e entra hoje, sujo) é urgente", () => {
-    const s = roomStatus([stay("airbnb", "2026-12-08", "2026-12-10"), stay("booking", "2026-12-10", "2026-12-12")], today);
-    expect(s.state).toBe("checkout");
-    expect(s.urgent).toBe(true);
+
+  it("depois da limpeza finalizada, a chegada do dia aparece como aguardando", () => {
+    const s = roomStatus(
+      [stay("airbnb", "2026-12-08", "2026-12-10", { checked_in_at: T, checked_out_at: T, cleaning_done_at: T }), stay("booking", "2026-12-10", "2026-12-12", { id: "chega" })],
+      today,
+    );
+    expect(s.state).toBe("aguardando_checkin");
+    expect(s.stay?.id).toBe("chega");
   });
-  it("limpeza pendente de saída recente; antiga é ignorada", () => {
-    expect(roomStatus([stay("airbnb", "2026-12-05", "2026-12-08")], today).state).toBe("limpeza_pendente");
-    expect(roomStatus([stay("airbnb", "2026-11-20", "2026-11-25")], today).state).toBe("livre");
+
+  it("reservas antigas esquecidas (mais de 7 dias) e passadas sem check-in são ignoradas", () => {
+    expect(roomStatus([stay("airbnb", "2026-11-20", "2026-11-25", { checked_in_at: T })], today).state).toBe("livre");
+    expect(roomStatus([stay("airbnb", "2026-12-05", "2026-12-08")], today).state).toBe("livre");
   });
+
   it("bloqueado e próxima chegada", () => {
     const s = roomStatus([stay("airbnb", "2026-12-09", "2026-12-15", { kind: "bloqueio" }), stay("manual", "2026-12-20", "2026-12-22", { id: "prox" })], today);
     expect(s.state).toBe("bloqueado");
