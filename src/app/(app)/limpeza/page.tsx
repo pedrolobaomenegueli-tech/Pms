@@ -47,7 +47,7 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
         <Link href={nav(today)} className="btn-secondary">Hoje</Link>
         <Link href={nav(addDays(day, 1))} className="btn-secondary">→</Link>
         <form className="flex gap-1">
-          <input type="date" name="dia" defaultValue={day} className="input w-auto py-1.5" />
+          <input type="date" name="dia" defaultValue={day} className="input w-auto! py-1.5" />
           <button className="btn-secondary">Ir</button>
         </form>
       </div>

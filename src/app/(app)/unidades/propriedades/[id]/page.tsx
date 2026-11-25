@@ -26,7 +26,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         </div>
         <div>
           <label className="label">Ordem</label>
-          <input type="number" name="sort_order" defaultValue={p.sort_order} className="input w-24" />
+          <input type="number" name="sort_order" defaultValue={p.sort_order} className="input w-24!" />
         </div>
         <div>
           <label className="label">Observações</label>

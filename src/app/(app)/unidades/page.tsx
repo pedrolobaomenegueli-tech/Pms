@@ -56,9 +56,9 @@ export default async function UnitsPage() {
             </ul>
             <ActionForm action={createUnit} resetOnSuccess className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
               <input type="hidden" name="property_id" value={p.id} />
-              <input name="name" placeholder="Novo quarto (ex.: Quarto 3)" required className="input min-w-0 flex-1" />
+              <input name="name" placeholder="Novo quarto (ex.: Quarto 3)" required className="input min-w-0 basis-full sm:basis-0 sm:flex-1" />
               <input type="color" name="color" defaultValue="#64748b" className="h-10 w-12 rounded border border-slate-300" aria-label="Cor" />
-              <input type="number" name="sort_order" defaultValue={pu.length + 1} className="input w-20" aria-label="Ordem" title="Ordem" />
+              <input type="number" name="sort_order" defaultValue={pu.length + 1} className="input w-16!" aria-label="Ordem" title="Ordem" />
               <SubmitButton className="btn-secondary">+ Quarto</SubmitButton>
             </ActionForm>
           </section>
@@ -68,8 +68,8 @@ export default async function UnitsPage() {
       <section className="card">
         <h2 className="mb-2 font-semibold">Nova propriedade</h2>
         <ActionForm action={createProperty} resetOnSuccess className="flex flex-wrap gap-2">
-          <input name="name" placeholder="Nome da propriedade" required className="input min-w-0 flex-1" />
-          <input type="number" name="sort_order" defaultValue={properties.length + 1} className="input w-20" aria-label="Ordem" title="Ordem" />
+          <input name="name" placeholder="Nome da propriedade" required className="input min-w-0 basis-full sm:basis-0 sm:flex-1" />
+          <input type="number" name="sort_order" defaultValue={properties.length + 1} className="input w-16!" aria-label="Ordem" title="Ordem" />
           <SubmitButton>Criar</SubmitButton>
         </ActionForm>
       </section>

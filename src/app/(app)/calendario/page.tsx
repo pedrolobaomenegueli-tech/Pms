@@ -49,7 +49,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <Link href={nav(addDays(today, -1))} className="btn-secondary">Hoje</Link>
         <Link href={nav(addDays(from, 7))} className="btn-secondary">7d →</Link>
         <form className="flex gap-1">
-          <input type="date" name="inicio" defaultValue={from} className="input w-auto py-1.5" />
+          <input type="date" name="inicio" defaultValue={from} className="input w-auto! py-1.5" />
           <button className="btn-secondary">Ir</button>
         </form>
         <Link href="/reservas/nova" className="btn-primary">+ Nova reserva</Link>

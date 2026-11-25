@@ -131,7 +131,7 @@ export default async function UnitPage({ params }: { params: Promise<{ id: strin
             </div>
             <div>
               <label className="label">Ordem</label>
-              <input type="number" name="sort_order" defaultValue={u.sort_order} className="input w-24" />
+              <input type="number" name="sort_order" defaultValue={u.sort_order} className="input w-24!" />
             </div>
           </div>
           <div>
