@@ -25,6 +25,7 @@ Opção A (mais simples, pelo painel):
    2. `20261126000001_checkin_checkout.sql`
    3. `20261127000001_checklists_cleanings.sql`
    4. `20261127000002_maintenance.sql`
+   5. `20261128000001_channel_inbox.sql`
 
 Opção B (Supabase CLI):
 
@@ -124,6 +125,41 @@ curl -X POST https://SEU-APP.vercel.app/api/sync -H "Authorization: Bearer SEU_S
 ```
 
 ---
+
+## Ambientes: produção e testes
+
+Use **dois projetos Supabase**: um de produção (suas reservas reais) e um de testes (dados fictícios e conexão com o sandbox do channel manager). Assim nenhum teste mexe nos dados reais.
+
+| | Produção | Testes |
+|---|---|---|
+| Supabase | projeto atual | **novo projeto** (ex.: `pms-testes`) |
+| Vercel | ambiente **Production** (branch `main`) | ambiente **Preview** (qualquer outra branch) |
+| `APP_ENV` | `production` | `staging` |
+| Exportação iCal | ligada | **desligada** |
+| Aparência | normal | faixa amarela "AMBIENTE DE TESTES" e cabeçalho marrom |
+
+**Passo a passo do ambiente de testes**
+
+1. Crie um segundo projeto no Supabase (o plano gratuito permite dois), região São Paulo.
+2. Rode as migrações na mesma ordem da produção (passo 2 da instalação).
+3. Rode `supabase/seed-staging.sql` para ter dados fictícios. Ele se recusa a rodar se o banco já tiver propriedades.
+4. Bloqueie cadastros e crie seu usuário de testes (passo 3 da instalação).
+5. Na Vercel, em **Settings** > **Environment Variables**, cadastre as variáveis do projeto de testes marcando **só o ambiente Preview** (desmarque Production):
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SYNC_SECRET` (outro valor), `APP_URL` (a URL de preview), `APP_ENV=staging` e `CHANNEL_INBOX_SECRET`.
+6. Confira que as variáveis de produção estão marcadas **só em Production**, com `APP_ENV=production`.
+7. Faça push em uma branch que não seja `main`: a Vercel gera uma URL de preview ligada ao banco de testes.
+8. Não ative o cron (`supabase/cron.sql`) no projeto de testes, a não ser que queira testar a sincronização.
+
+> Nunca cole links de exportação do ambiente de testes no Airbnb ou no Booking. Eles ficam desligados de propósito.
+
+**Caixa de entrada do channel manager**
+
+Enquanto a integração com a HotelLink não existe, o endereço `/api/channel/inbox` recebe e guarda **sem interpretar** tudo o que o channel manager enviar, para estudarmos o formato real.
+
+- Fica **desligado** até você definir `CHANNEL_INBOX_SECRET` (mínimo 16 caracteres).
+- URL para cadastrar no sandbox da HotelLink: `https://SUA-URL-DE-PREVIEW/api/channel/inbox?key=SEU_CHANNEL_INBOX_SECRET` (ou o cabeçalho `Authorization: Bearer ...`, se ela permitir).
+- As mensagens ficam na tabela `channel_inbox` (Supabase > **Table Editor**). Credenciais em cabeçalhos e o parâmetro `key` **não** são guardados.
+- Pode conter dados de hóspedes (LGPD): use só no ambiente de testes e apague o que não precisar (`delete from channel_inbox where received_at < now() - interval '30 days';`).
 
 ## Regras de negócio
 
