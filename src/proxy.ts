@@ -41,5 +41,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // /api tem autenticação própria (segredo do sync e token da exportação)
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!api|equipe|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
