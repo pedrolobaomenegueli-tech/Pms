@@ -121,7 +121,7 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
                   Sai: {stayLabel(r)} ({formatShort(r.check_in)}→{formatShort(r.check_out)})
                 </Link>
                 {next && property && (
-                  <p className={cx("text-sm", next.check_in === day ? "font-semibold text-red-700" : "text-slate-600")}>
+                  <p className={cx("text-sm", next.check_in === day && !e.done ? "font-semibold text-red-700" : "text-slate-600")}>
                     Próximo check-in: {next.check_in === day ? "hoje" : formatDate(next.check_in)} às{" "}
                     {effectiveCheckinTime(next, property)} ({stayLabel(next)})
                   </p>

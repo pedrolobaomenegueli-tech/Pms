@@ -95,7 +95,11 @@ export default async function TeamPage({
               </ul>
             )}
             {room.preview && room.items.length > 0 && (
-              <p className="mt-1 text-xs text-slate-500">Checklist previsto (o hóspede ainda não saiu).</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {room.status === "Aguardando check-out"
+                  ? "Checklist previsto (o hóspede ainda não saiu)."
+                  : "Checklist atual do quarto."}
+              </p>
             )}
           </li>
         ))}

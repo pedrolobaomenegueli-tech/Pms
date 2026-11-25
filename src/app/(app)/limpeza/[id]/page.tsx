@@ -55,7 +55,8 @@ export default async function CleaningDetailPage({ params }: { params: Promise<{
           <StageBadge r={r} />
           {next && property && (
             <span className="text-sm text-slate-700">
-              Próximo check-in: {formatDate(next.check_in)} às {effectiveCheckinTime(next, property)}
+              Próximo check-in: {next.check_in === todaySP() ? "hoje" : formatDate(next.check_in)} às{" "}
+              {effectiveCheckinTime(next, property)}
             </span>
           )}
         </div>
