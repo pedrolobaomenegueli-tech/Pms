@@ -14,7 +14,7 @@ const STATE_STYLE: Record<RoomState, string> = {
   hospedado: STAGE_SOFT.hospedado,
   em_limpeza: STAGE_SOFT.em_limpeza,
   aguardando_checkin: STAGE_SOFT.aguardando_checkin,
-  bloqueado: "bg-slate-200 text-slate-700 ring-slate-300",
+  bloqueado: "bloqueio-card text-slate-600 ring-slate-300",
   livre: "bg-white text-slate-700 ring-slate-200",
 };
 

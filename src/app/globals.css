@@ -43,3 +43,7 @@
     #cbd5e1 6px 12px
   );
 }
+
+@utility bloqueio-card {
+  background-image: repeating-linear-gradient(135deg, #f8fafc 0 8px, #e2e8f0 8px 16px);
+}

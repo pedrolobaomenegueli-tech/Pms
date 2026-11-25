@@ -13,12 +13,6 @@ const DAYS = 30;
 const W = 44; // largura de um dia (px)
 const LANE = 30; // altura de uma faixa (px)
 
-const STAGE_ICON: Record<Stage, string> = {
-  aguardando_checkin: "",
-  hospedado: "🛏️ ",
-  em_limpeza: "🧹 ",
-  finalizado: "✓ ",
-};
 
 /** Distribui barras em faixas para não se sobreporem visualmente. */
 function lanes(stays: Reservation[]): { r: Reservation; lane: number }[] {
@@ -68,7 +62,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <span className="w-20 font-semibold text-slate-700">Cor = estado</span>
           {(Object.keys(STAGE_LABEL) as Stage[]).map((st) => (
             <span key={st} className="flex items-center gap-1">
-              <span className={cx("h-3 w-5 rounded", STAGE_FILL[st])} /> {STAGE_ICON[st]}{STAGE_LABEL[st]}
+              <span className={cx("h-3 w-5 rounded", STAGE_FILL[st])} /> {STAGE_LABEL[st]}
             </span>
           ))}
           <span className="flex items-center gap-1"><span className="bar-bloqueio h-3 w-5 rounded" /> Bloqueio</span>
@@ -81,7 +75,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             </span>
           ))}
           <span className="flex items-center gap-1">
-            <span className="h-3 w-5 rounded bg-white ring-2 ring-red-600 ring-offset-1" /> ⚠️ Conflito
+            <span className="h-3 w-5 rounded bg-white outline-2 outline-offset-2 outline-dashed outline-orange-500" /> ⚠️ Conflito
           </span>
         </div>
       </div>
@@ -150,12 +144,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                                 "border-[3px]",
                                 SOURCE_BORDER[r.source],
                                 isBlock ? "bar-bloqueio text-slate-800" : STAGE_FILL[stage],
-                                conflictIds.has(r.id) && "ring-2 ring-red-600 ring-offset-2",
+                                conflictIds.has(r.id) && "outline-2 outline-offset-2 outline-dashed outline-orange-500",
                               )}
                               style={{ left: left + 1, width: Math.max(right - left - 2, 8), top: 4 + lane * LANE, height: LANE - 4 }}
                             >
                               {conflictIds.has(r.id) ? "⚠️ " : ""}
-                              {isBlock ? "Bloqueio" : `${STAGE_ICON[stage]}${r.guest_name || SOURCE_LABEL[r.source]}`}
+                              {isBlock ? "Bloqueio" : r.guest_name || SOURCE_LABEL[r.source]}
                             </Link>
                           );
                         })}
