@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ActionForm";
+import { ChecklistEditor } from "@/components/ChecklistEditor";
 import { CopyButton } from "@/components/CopyButton";
 import { FeedStatus } from "@/components/FeedStatus";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -8,7 +9,7 @@ import { SyncNowButton } from "@/components/SyncNowButton";
 import { env } from "@/lib/env";
 import { loadProperties } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
-import { CHANNEL_LABEL, type Feed, type Unit } from "@/lib/types";
+import { CHANNEL_LABEL, type ChecklistItem, type Feed, type Unit } from "@/lib/types";
 import { deleteFeed, regenerateToken, saveFeed, updateUnit } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,14 @@ export default async function UnitPage({ params }: { params: Promise<{ id: strin
   ]);
   if (!data) notFound();
   const u = data as Unit;
+  const { data: checklistRows } = await supabase
+    .from("checklist_items")
+    .select("*")
+    .or(`unit_id.eq.${u.id},property_id.eq.${u.property_id}`)
+    .order("sort_order");
+  const checklist = (checklistRows ?? []) as ChecklistItem[];
+  const inherited = checklist.filter((i) => i.property_id === u.property_id);
+  const property = properties.find((p) => p.id === u.property_id);
   const feeds = (feedRows ?? []) as Feed[];
   const base = `${env.appUrl}/api/ical/${u.export_token}`;
   const missing = (["airbnb", "booking"] as const).filter((c) => !feeds.some((f) => f.channel === c));
@@ -108,6 +117,26 @@ export default async function UnitPage({ params }: { params: Promise<{ id: strin
             Gerar novos links (invalida os atuais)
           </SubmitButton>
         </form>
+      </section>
+
+      <section className="card">
+        <h2 className="mb-1 font-semibold">Checklist de limpeza</h2>
+        <p className="mb-2 text-xs text-slate-500">
+          Herdado de{" "}
+          <Link href={`/unidades/propriedades/${u.property_id}`} className="underline">{property?.name ?? "propriedade"}</Link>
+          {inherited.length ? ":" : " (modelo vazio)."}
+        </p>
+        {inherited.length > 0 && (
+          <ol className="mb-3 list-decimal space-y-0.5 pl-6 text-sm text-slate-500">
+            {inherited.sort((a, b) => a.sort_order - b.sort_order).map((i) => <li key={i.id}>{i.label}</li>)}
+          </ol>
+        )}
+        <h3 className="mb-2 text-sm font-semibold">Itens extras deste quarto</h3>
+        <ChecklistEditor
+          items={checklist.filter((i) => i.unit_id === u.id)}
+          owner={{ unit_id: u.id }}
+          placeholder="Extra (ex.: conferir controle do ar)"
+        />
       </section>
 
       <section className="card">
