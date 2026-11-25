@@ -62,7 +62,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <span className="w-20 font-semibold text-slate-700">Cor = estado</span>
           {(Object.keys(STAGE_LABEL) as Stage[]).map((st) => (
             <span key={st} className="flex items-center gap-1">
-              <span className={cx("h-3 w-5 rounded", STAGE_FILL[st])} /> {STAGE_LABEL[st]}
+              <span className={cx("h-3.5 w-6 rounded", STAGE_FILL[st])} /> {STAGE_LABEL[st]}
             </span>
           ))}
           <span className="flex items-center gap-1"><span className="bar-bloqueio h-3 w-5 rounded" /> Bloqueio</span>
@@ -71,7 +71,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <span className="w-20 font-semibold text-slate-700">Borda = canal</span>
           {(["airbnb", "booking", "manual", "outro"] as Source[]).map((src) => (
             <span key={src} className="flex items-center gap-1">
-              <span className={cx("h-3 w-5 rounded border-[3px] bg-white", SOURCE_BORDER[src])} /> {SOURCE_LABEL[src]}
+              <span className={cx("h-3.5 w-6 rounded border-[3px] bg-white", SOURCE_BORDER[src])} /> {SOURCE_LABEL[src]}
             </span>
           ))}
           <span className="flex items-center gap-1">
@@ -140,8 +140,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                               href={`/reservas/${r.id}`}
                               title={`${SOURCE_LABEL[r.source]} ${isBlock ? "bloqueio" : `reserva, ${STAGE_LABEL[stage]}`} ${r.check_in} → ${r.check_out}`}
                               className={cx(
-                                "absolute flex items-center overflow-hidden rounded-md px-1 text-xs font-medium whitespace-nowrap shadow-sm",
-                                "border-[3px]",
+                                "absolute flex items-center overflow-hidden rounded-md px-1 text-xs font-medium whitespace-nowrap",
+                                "border-[3px] shadow-[inset_0_0_0_2px_#fff]",
                                 SOURCE_BORDER[r.source],
                                 isBlock ? "bar-bloqueio text-slate-800" : STAGE_FILL[stage],
                                 conflictIds.has(r.id) && "outline-2 outline-offset-2 outline-dashed outline-orange-500",

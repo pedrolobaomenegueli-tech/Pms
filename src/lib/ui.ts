@@ -40,16 +40,16 @@ export function strOrNull(fd: FormData, key: string): string | null {
 
 /** Preenchimento por etapa (mesmas cores no calendário, início e etiquetas). */
 export const STAGE_FILL: Record<Stage, string> = {
-  aguardando_checkin: "bg-sky-200 text-sky-950",
-  hospedado: "bg-red-200 text-red-950",
-  em_limpeza: "bg-slate-300 text-slate-800",
-  finalizado: "bg-emerald-300 text-emerald-950",
+  aguardando_checkin: "bg-sky-400 text-sky-950",
+  hospedado: "bg-red-500 text-white",
+  em_limpeza: "bg-slate-500 text-white",
+  finalizado: "bg-emerald-500 text-white",
 };
 
 /** Versão clara para cartões e etiquetas. */
 export const STAGE_SOFT: Record<Stage, string> = {
-  aguardando_checkin: "bg-sky-100 text-sky-900 ring-sky-300",
-  hospedado: "bg-red-100 text-red-900 ring-red-300",
-  em_limpeza: "bg-slate-200 text-slate-800 ring-slate-400",
-  finalizado: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+  aguardando_checkin: "bg-sky-200 text-sky-950 ring-sky-400",
+  hospedado: "bg-red-200 text-red-950 ring-red-500",
+  em_limpeza: "bg-slate-300 text-slate-900 ring-slate-500",
+  finalizado: "bg-emerald-200 text-emerald-950 ring-emerald-500",
 };
