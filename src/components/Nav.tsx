@@ -9,6 +9,7 @@ const ITEMS = [
   { href: "/calendario", label: "Calendário", icon: "📅" },
   { href: "/reservas", label: "Reservas", icon: "📋" },
   { href: "/limpeza", label: "Limpeza", icon: "🧹" },
+  { href: "/manutencao", label: "Manutenção", icon: "🔧" },
   { href: "/unidades", label: "Quartos", icon: "🔑" },
 ];
 
@@ -36,13 +37,13 @@ export function Nav() {
         ))}
       </nav>
       {/* Barra inferior (celular) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
         {ITEMS.map((i) => (
           <Link
             key={i.href}
             href={i.href}
             className={cx(
-              "flex flex-col items-center gap-0.5 py-2 text-[11px]",
+              "flex flex-col items-center gap-0.5 py-2 text-[10px] leading-tight",
               isActive(path, i.href) ? "font-semibold text-slate-900" : "text-slate-500",
             )}
           >

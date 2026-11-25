@@ -9,7 +9,10 @@ import { SyncNowButton } from "@/components/SyncNowButton";
 import { env } from "@/lib/env";
 import { loadProperties } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
-import { CHANNEL_LABEL, type ChecklistItem, type Feed, type Unit } from "@/lib/types";
+import { CHANNEL_LABEL, type ChecklistItem, type Feed, type MaintenanceIssue, type Unit } from "@/lib/types";
+import { sortIssues } from "@/lib/domain/maintenance";
+import { formatDate } from "@/lib/dates";
+import { PriorityBadge, StatusBadge } from "@/components/MaintenanceBadges";
 import { deleteFeed, regenerateToken, saveFeed, updateUnit } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,8 @@ export default async function UnitPage({ params }: { params: Promise<{ id: strin
   ]);
   if (!data) notFound();
   const u = data as Unit;
+  const { data: issueRows } = await supabase.from("maintenance_issues").select("*").eq("unit_id", u.id);
+  const issues = sortIssues((issueRows ?? []) as MaintenanceIssue[]);
   const { data: checklistRows } = await supabase
     .from("checklist_items")
     .select("*")
@@ -117,6 +122,29 @@ export default async function UnitPage({ params }: { params: Promise<{ id: strin
             Gerar novos links (invalida os atuais)
           </SubmitButton>
         </form>
+      </section>
+
+      <section className="card">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="font-semibold">Manutenção ({issues.length})</h2>
+          <Link href={`/manutencao/nova?quarto=${u.id}`} className="btn-secondary">+ Registrar</Link>
+        </div>
+        {issues.length === 0 ? (
+          <p className="text-sm text-slate-500">Nenhum problema registrado.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {issues.map((i) => (
+              <li key={i.id}>
+                <Link href={`/manutencao/${i.id}`} className="flex flex-wrap items-center gap-2 py-2 text-sm hover:bg-slate-50">
+                  <PriorityBadge p={i.priority} />
+                  <StatusBadge s={i.status} />
+                  <span className="min-w-0 flex-1 truncate">{i.title}</span>
+                  <span className="text-xs text-slate-500">{formatDate(i.opened_on)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="card">

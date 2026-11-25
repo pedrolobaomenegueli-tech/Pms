@@ -5,7 +5,8 @@ import { addDays, formatDayMonth, formatShort, todaySP, weekday } from "@/lib/da
 import { findConflicts, roomStatus, ROOM_STATE_LABEL, type RoomState } from "@/lib/domain/rules";
 import { loadActiveStays, loadFeeds, loadProperties, unitLabel } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
-import type { Reservation } from "@/lib/types";
+import type { MaintenanceIssue, Reservation } from "@/lib/types";
+import { checkinRisks } from "@/lib/domain/maintenance";
 import { cx, STAGE_SOFT, stayLabel } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
@@ -30,14 +31,18 @@ function Guest({ r, prefix }: { r?: Reservation; prefix: string }) {
 export default async function HomePage() {
   const { supabase } = await requireUser();
   const today = todaySP();
-  const [{ properties, units }, stays, feeds] = await Promise.all([
+  const [{ properties, units }, stays, feeds, { data: issueRows }] = await Promise.all([
     loadProperties(supabase, { onlyActive: true }),
     loadActiveStays(supabase, addDays(today, -8), addDays(today, 366)),
     loadFeeds(supabase),
+    supabase.from("maintenance_issues").select("*").neq("status", "resolvido"),
   ]);
   const activeUnitIds = new Set(units.map((u) => u.id));
   const conflicts = findConflicts(stays.filter((r) => r.check_out >= today && activeUnitIds.has(r.unit_id)));
   const label = (id: string) => unitLabel(units, properties, id);
+  const openIssues = ((issueRows ?? []) as MaintenanceIssue[]).filter((i) => activeUnitIds.has(i.unit_id));
+  const urgentIssues = openIssues.filter((i) => i.priority === "urgente");
+  const risks = checkinRisks(openIssues, stays.filter((r) => activeUnitIds.has(r.unit_id)), today);
 
   const statuses = new Map(units.map((u) => [u.id, roomStatus(stays.filter((r) => r.unit_id === u.id), today)]));
   const counts = new Map<RoomState, number>();
@@ -45,7 +50,13 @@ export default async function HomePage() {
 
   return (
     <div>
-      <Alerts feeds={feeds.filter((f) => activeUnitIds.has(f.unit_id))} conflicts={conflicts} label={label} />
+      <Alerts
+        feeds={feeds.filter((f) => activeUnitIds.has(f.unit_id))}
+        conflicts={conflicts}
+        label={label}
+        urgentIssues={urgentIssues}
+        checkinRisks={risks}
+      />
 
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-xl font-semibold">
