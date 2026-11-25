@@ -1,3 +1,4 @@
+import type { CleaningPriority } from "./domain/cleaning";
 import type { Stage } from "./domain/rules";
 import { SOURCE_LABEL, type Source } from "./types";
 
@@ -50,3 +51,10 @@ export const STAGE_SOFT: Record<Stage, string> = {
 export function stayLabel(r: { source: Source; guest_name: string | null }): string {
   return r.guest_name ? `${SOURCE_LABEL[r.source]} · ${r.guest_name}` : SOURCE_LABEL[r.source];
 }
+
+export const PRIORITY_STYLE: Record<CleaningPriority, string> = {
+  urgente: "bg-red-600 text-white",
+  checkin_amanha: "bg-orange-500 text-white",
+  saida_hoje: "bg-slate-200 text-slate-800",
+  pendente: "bg-purple-600 text-white",
+};

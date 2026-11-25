@@ -21,7 +21,14 @@ export async function saveReservation(_: ActionState, fd: FormData): Promise<Act
   const id = strOrNull(fd, "id");
   const guests = parseGuests(fd);
   if (guests === "invalid") return { error: "Nº de hóspedes inválido." };
-  const personal = { guest_name: strOrNull(fd, "guest_name"), guests, notes: strOrNull(fd, "notes") };
+  const checkInTime = strOrNull(fd, "check_in_time");
+  if (checkInTime && !/^\d{2}:\d{2}(:\d{2})?$/.test(checkInTime)) return { error: "Horário de check-in inválido." };
+  const personal = {
+    guest_name: strOrNull(fd, "guest_name"),
+    guests,
+    notes: strOrNull(fd, "notes"),
+    check_in_time: checkInTime,
+  };
 
   let existing: Reservation | null = null;
   if (id) {

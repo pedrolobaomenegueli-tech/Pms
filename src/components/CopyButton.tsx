@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text, label = "Copiar", className = "btn-secondary shrink-0" }: { text: string; label?: string; className?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
-      className="btn-secondary shrink-0"
+      className={className}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(text);
@@ -18,7 +18,7 @@ export function CopyButton({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 2000);
       }}
     >
-      {copied ? "Copiado ✓" : "Copiar"}
+      {copied ? "Copiado ✓" : label}
     </button>
   );
 }

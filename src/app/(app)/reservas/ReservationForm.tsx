@@ -22,7 +22,7 @@ export function ReservationForm({
       {r && <input type="hidden" name="id" value={r.id} />}
       {imported && (
         <p className="rounded-lg bg-slate-100 p-2 text-sm text-slate-600">
-          Reserva importada: quarto, datas e tipo vêm do iCal. Você pode editar nome, hóspedes e observações; a sincronização não sobrescreve esses campos.
+          Reserva importada: quarto, datas e tipo vêm do iCal. Você pode editar nome, hóspedes, horário de check-in e observações; a sincronização não sobrescreve esses campos.
         </p>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -56,6 +56,12 @@ export function ReservationForm({
           <label className="label">Nº de hóspedes</label>
           <input type="number" name="guests" min={1} max={99} inputMode="numeric" className="input" defaultValue={r?.guests ?? ""} />
         </div>
+        <div>
+          <label className="label">Horário de check-in</label>
+          <input type="time" name="check_in_time" className="input" defaultValue={r?.check_in_time?.slice(0, 5) ?? ""} />
+          <p className="mt-1 text-xs text-slate-500">Vazio = padrão da propriedade.</p>
+        </div>
+        <div className="hidden sm:block" />
         <div className="sm:col-span-2">
           <label className="label">Nome do hóspede</label>
           <input name="guest_name" className="input" defaultValue={r?.guest_name ?? ""} />

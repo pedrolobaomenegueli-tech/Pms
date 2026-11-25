@@ -1,14 +1,24 @@
 import Link from "next/link";
 import { ActionForm } from "@/components/ActionForm";
+import { CopyButton } from "@/components/CopyButton";
 import { StageBadge, StageButtons } from "@/components/StageButtons";
 import { SubmitButton } from "@/components/SubmitButton";
 import { UnitSelect } from "@/components/UnitSelect";
+import { loadCleaningDay } from "@/lib/cleaning-db";
 import { addDays, formatDate, formatDayMonth, formatShort, isIsoDate, todaySP, weekday } from "@/lib/dates";
+import {
+  buildTeamView,
+  effectiveCheckinTime,
+  PRIORITY_LABEL,
+  whatsappMessage,
+} from "@/lib/domain/cleaning";
 import { visibleStays } from "@/lib/domain/rules";
-import { loadActiveStays, loadProperties, loadTasks, unitLabel } from "@/lib/data";
+import { loadTasks, unitLabel } from "@/lib/data";
+import { env } from "@/lib/env";
 import { requireUser } from "@/lib/supabase/server";
-import { TASK_KIND_LABEL, type Reservation, type Task } from "@/lib/types";
-import { cx, stayLabel } from "@/lib/ui";
+import { TASK_KIND_LABEL, type Task } from "@/lib/types";
+import { cx, PRIORITY_STYLE, stayLabel } from "@/lib/ui";
+import { regenerateTeamToken } from "../unidades/actions";
 import { createTask, deleteTask, toggleTask } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -19,34 +29,16 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
   const today = todaySP();
   const day = isIsoDate(sp.dia) ? sp.dia : today;
 
-  const [{ properties, units }, stays, tasks, { data: openRows }] = await Promise.all([
-    loadProperties(supabase, { onlyActive: true }),
-    loadActiveStays(supabase, addDays(day, -1), addDays(day, 1)),
-    loadTasks(supabase, day),
-    // Quartos em limpeza de dias anteriores que ninguém finalizou
-    supabase
-      .from("reservations")
-      .select("*")
-      .eq("status", "ativa")
-      .not("checked_out_at", "is", null)
-      .is("cleaning_done_at", null)
-      .lt("check_out", day)
-      .gte("check_out", addDays(day, -14))
-      .order("check_out"),
-  ]);
-  const activeIds = new Set(units.map((u) => u.id));
-  const vis = visibleStays(stays).filter((r) => r.kind === "reserva" && activeIds.has(r.unit_id));
-  const order = new Map(units.map((u, i) => [u.id, i]));
-  const checkouts = vis
-    .filter((r) => r.check_out === day)
-    .sort((a, b) => (order.get(a.unit_id)! - order.get(b.unit_id)!));
-  const checkins = vis.filter((r) => r.check_in === day);
-  const checkinByUnit = new Map(checkins.map((r) => [r.unit_id, r]));
-  const onlyCheckins = checkins.filter((r) => !checkouts.some((c) => c.unit_id === r.unit_id));
+  const [data, tasks] = await Promise.all([loadCleaningDay(supabase, day), loadTasks(supabase, day)]);
+  const { properties, units, entries, cleaningItems, stays } = data;
   const label = (id: string) => unitLabel(units, properties, id);
+  const propOf = (unitId: string) => properties.find((p) => p.id === units.find((u) => u.id === unitId)?.property_id);
   const nav = (d: string) => `/limpeza?dia=${d}`;
-  const pending = checkouts.filter((r) => !r.cleaning_done_at).length;
-  const openCleaning = ((openRows ?? []) as Reservation[]).filter((r) => activeIds.has(r.unit_id));
+  const pending = entries.filter((e) => !e.done).length;
+
+  // Chegadas do dia em quartos sem saída no mesmo dia
+  const departUnits = new Set(entries.filter((e) => e.reservation.check_out === day).map((e) => e.unit_id));
+  const onlyCheckins = visibleStays(stays).filter((r) => r.kind === "reserva" && r.check_in === day && !departUnits.has(r.unit_id));
 
   return (
     <div className="space-y-4">
@@ -63,62 +55,91 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
         </form>
       </div>
 
+      <details className="card">
+        <summary className="cursor-pointer font-semibold">📲 Enviar para a equipe (WhatsApp)</summary>
+        <p className="mt-2 text-xs text-slate-500">
+          Um link por propriedade, só de leitura e sem dados de hóspedes. A mensagem leva a data, a lista resumida e o link.
+        </p>
+        <ul className="mt-3 space-y-3">
+          {properties.map((p) => {
+            const url = `${env.appUrl}/equipe/${p.team_token}?dia=${day}`;
+            const view = buildTeamView({ day, property: p, units, entries, cleaningItems, checklist: data.checklist });
+            return (
+              <li key={p.id} className="rounded-lg border border-slate-200 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <strong className="text-sm">{p.name}</strong>
+                  <span className="text-xs text-slate-500">{view.rooms.length} limpeza(s)</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <CopyButton text={whatsappMessage(view, url)} label="Copiar mensagem para WhatsApp" className="btn-primary" />
+                  <a href={url} target="_blank" rel="noreferrer" className="btn-secondary">Abrir página</a>
+                  <form action={regenerateTeamToken}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <SubmitButton
+                      className="btn-secondary"
+                      confirm={`Gerar novo link para ${p.name}? O link enviado antes para de funcionar.`}
+                      pendingText="Gerando…"
+                    >
+                      Gerar novo link
+                    </SubmitButton>
+                  </form>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </details>
+
       <section>
         <h2 className="mb-2 font-semibold">
-          Check-outs ({checkouts.length}){pending > 0 && <span className="ml-2 text-sm font-normal text-orange-700">{pending} a limpar</span>}
+          Limpezas ({entries.length})
+          {pending > 0 && <span className="ml-2 text-sm font-normal text-orange-700">{pending} a fazer</span>}
         </h2>
-        {checkouts.length === 0 && <p className="card text-sm text-slate-500">Nenhum check-out neste dia.</p>}
+        {entries.length === 0 && <p className="card text-sm text-slate-500">Nenhuma limpeza neste dia.</p>}
         <ul className="space-y-2">
-          {checkouts.map((r) => {
-            const arrival = checkinByUnit.get(r.unit_id);
+          {entries.map((e) => {
+            const r = e.reservation;
+            const property = propOf(e.unit_id);
+            const total = e.cleaning ? cleaningItems.filter((i) => i.cleaning_id === e.cleaning!.id) : [];
+            const doneCount = total.filter((i) => i.done_at).length;
+            const next = e.nextArrival;
             return (
-              <li
-                key={r.id}
-                className={cx(
-                  "card p-3",
-                  arrival && !r.cleaning_done_at && "ring-2 ring-red-500",
-                  r.cleaning_done_at && "bg-emerald-50",
-                )}
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-semibold">{label(r.unit_id)}</span>
-                  <span className="text-xs text-slate-500">
-                    <StageBadge r={r} />
+              <li key={r.id} className={cx("card p-3", e.priority === "urgente" && !e.done && "ring-2 ring-red-500", e.done && "opacity-70")}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={cx("rounded-full px-2 py-0.5 text-xs font-semibold", PRIORITY_STYLE[e.priority])}>
+                    {PRIORITY_LABEL[e.priority]}
                   </span>
+                  <StageBadge r={r} />
+                  {e.cleaning && (
+                    <span className="text-xs text-slate-600">
+                      Checklist {doneCount}/{total.length}
+                    </span>
+                  )}
                 </div>
+                <div className="mt-1 font-semibold">{label(e.unit_id)}</div>
                 <Link href={`/reservas/${r.id}`} className="text-sm text-slate-600 hover:underline">
                   Sai: {stayLabel(r)} ({formatShort(r.check_in)}→{formatShort(r.check_out)})
                 </Link>
-                {arrival && (
-                  <p className={cx("mt-1 text-sm", r.cleaning_done_at ? "text-slate-600" : "font-semibold text-red-700")}>
-                    {r.cleaning_done_at ? "Chega hoje" : "⚡ Check-in no mesmo dia"}: {stayLabel(arrival)}
-                    {arrival.guests ? `, ${arrival.guests} hósp.` : ""}
+                {next && property && (
+                  <p className={cx("text-sm", next.check_in === day ? "font-semibold text-red-700" : "text-slate-600")}>
+                    Próximo check-in: {next.check_in === day ? "hoje" : formatDate(next.check_in)} às{" "}
+                    {effectiveCheckinTime(next, property)} ({stayLabel(next)})
                   </p>
                 )}
-                {r.notes && <p className="mt-1 text-xs text-slate-500">{r.notes}</p>}
-                <div className="mt-2">
-                  <StageButtons r={r} />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {r.checked_out_at ? (
+                    <Link href={`/limpeza/${r.id}`} className="btn-primary">
+                      {e.done ? "Ver limpeza" : "Abrir limpeza"}
+                    </Link>
+                  ) : (
+                    <StageButtons r={r} showUndo={false} />
+                  )}
                 </div>
               </li>
             );
           })}
         </ul>
       </section>
-
-      {openCleaning.length > 0 && (
-        <section>
-          <h2 className="mb-2 font-semibold text-orange-700">Limpezas de dias anteriores não finalizadas ({openCleaning.length})</h2>
-          <ul className="space-y-2">
-            {openCleaning.map((r) => (
-              <li key={r.id} className="card p-3">
-                <div className="font-semibold">{label(r.unit_id)}</div>
-                <p className="text-sm text-slate-600">Saída em {formatShort(r.check_out)}</p>
-                <div className="mt-2"><StageButtons r={r} /></div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {onlyCheckins.length > 0 && (
         <section>
