@@ -90,8 +90,8 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
                   Sai: {r.guest_name || SOURCE_LABEL[r.source]} ({formatShort(r.check_in)}→{formatShort(r.check_out)})
                 </Link>
                 {arrival && (
-                  <p className="mt-1 text-sm font-semibold text-red-700">
-                    ⚡ Check-in no mesmo dia: {arrival.guest_name || SOURCE_LABEL[arrival.source]}
+                  <p className={cx("mt-1 text-sm", r.cleaning_done_at ? "text-slate-600" : "font-semibold text-red-700")}>
+                    {r.cleaning_done_at ? "Chega hoje" : "⚡ Check-in no mesmo dia"}: {arrival.guest_name || SOURCE_LABEL[arrival.source]}
                     {arrival.guests ? `, ${arrival.guests} hósp.` : ""}
                   </p>
                 )}
