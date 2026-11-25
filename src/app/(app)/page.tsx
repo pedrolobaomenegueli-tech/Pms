@@ -1,0 +1,119 @@
+import Link from "next/link";
+import { Alerts } from "@/components/Alerts";
+import { CleaningButtons } from "@/components/CleaningButtons";
+import { addDays, formatDayMonth, formatShort, todaySP, weekday } from "@/lib/dates";
+import { findConflicts, roomStatus, ROOM_STATE_LABEL, type RoomState } from "@/lib/domain/rules";
+import { loadActiveStays, loadFeeds, loadProperties, unitLabel } from "@/lib/data";
+import { requireUser } from "@/lib/supabase/server";
+import { SOURCE_LABEL, type Reservation } from "@/lib/types";
+import { cx } from "@/lib/ui";
+
+export const dynamic = "force-dynamic";
+
+const STATE_STYLE: Record<RoomState, string> = {
+  ocupado: "bg-sky-100 text-sky-900 ring-sky-300",
+  checkout: "bg-orange-100 text-orange-900 ring-orange-300",
+  em_limpeza: "bg-yellow-100 text-yellow-900 ring-yellow-300",
+  limpeza_pendente: "bg-rose-100 text-rose-900 ring-rose-300",
+  checkin: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+  bloqueado: "bg-slate-200 text-slate-700 ring-slate-300",
+  livre: "bg-white text-slate-700 ring-slate-200",
+};
+
+function Guest({ r, prefix }: { r?: Reservation; prefix: string }) {
+  if (!r) return null;
+  return (
+    <Link href={`/reservas/${r.id}`} className="block truncate text-xs hover:underline">
+      {prefix}: {r.guest_name || SOURCE_LABEL[r.source]} · {formatShort(r.check_in)}→{formatShort(r.check_out)}
+    </Link>
+  );
+}
+
+export default async function HomePage() {
+  const { supabase } = await requireUser();
+  const today = todaySP();
+  const [{ properties, units }, stays, feeds] = await Promise.all([
+    loadProperties(supabase, { onlyActive: true }),
+    loadActiveStays(supabase, addDays(today, -8), addDays(today, 366)),
+    loadFeeds(supabase),
+  ]);
+  const activeUnitIds = new Set(units.map((u) => u.id));
+  const conflicts = findConflicts(stays.filter((r) => r.check_out >= today && activeUnitIds.has(r.unit_id)));
+  const label = (id: string) => unitLabel(units, properties, id);
+
+  const statuses = new Map(units.map((u) => [u.id, roomStatus(stays.filter((r) => r.unit_id === u.id), today)]));
+  const counts = new Map<RoomState, number>();
+  for (const s of statuses.values()) counts.set(s.state, (counts.get(s.state) ?? 0) + 1);
+
+  return (
+    <div>
+      <Alerts feeds={feeds.filter((f) => activeUnitIds.has(f.unit_id))} conflicts={conflicts} label={label} />
+
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-xl font-semibold">
+          Hoje, {weekday(today)} {formatDayMonth(today)}
+        </h1>
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          {(Object.keys(ROOM_STATE_LABEL) as RoomState[])
+            .filter((s) => counts.get(s))
+            .map((s) => (
+              <span key={s} className={cx("rounded-full px-2 py-0.5 ring-1", STATE_STYLE[s])}>
+                {ROOM_STATE_LABEL[s]}: {counts.get(s)}
+              </span>
+            ))}
+        </div>
+      </div>
+
+      {units.length === 0 && (
+        <div className="card text-sm">
+          Nenhum quarto cadastrado ainda. <Link href="/unidades" className="underline">Cadastre propriedades e quartos</Link>.
+        </div>
+      )}
+
+      <div className="space-y-5">
+        {properties.map((p) => {
+          const pu = units.filter((u) => u.property_id === p.id);
+          if (!pu.length) return null;
+          return (
+            <section key={p.id}>
+              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{p.name}</h2>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {pu.map((u) => {
+                  const s = statuses.get(u.id)!;
+                  return (
+                    <div key={u.id} className={cx("rounded-xl p-3 ring-1", STATE_STYLE[s.state])}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: u.color }} />
+                          <span className="truncate font-semibold">{u.name}</span>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold uppercase">{ROOM_STATE_LABEL[s.state]}</span>
+                      </div>
+                      {s.urgent && (
+                        <p className="mt-1 text-xs font-bold text-red-700">⚡ Check-in hoje: limpar antes da chegada</p>
+                      )}
+                      <div className="mt-1.5 space-y-0.5">
+                        <Guest r={s.current} prefix="Hóspede" />
+                        <Guest r={s.departure} prefix="Saída" />
+                        <Guest r={s.arrival} prefix="Chegada" />
+                        {s.state === "bloqueado" && s.block && (
+                          <p className="text-xs">Bloqueado até {formatShort(s.block.check_out)}</p>
+                        )}
+                        {!s.current && !s.arrival && s.next && <Guest r={s.next} prefix="Próxima" />}
+                      </div>
+                      {s.departure && !s.departure.cleaning_done_at && (
+                        <div className="mt-2">
+                          <CleaningButtons r={s.departure} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
