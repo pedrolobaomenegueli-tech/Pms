@@ -6,6 +6,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { FeedStatus } from "@/components/FeedStatus";
 import { SubmitButton } from "@/components/SubmitButton";
 import { SyncNowButton } from "@/components/SyncNowButton";
+import { isStaging } from "@/lib/app-env";
 import { env } from "@/lib/env";
 import { loadProperties } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
@@ -97,6 +98,11 @@ export default async function UnitPage({ params }: { params: Promise<{ id: strin
 
       <section className="card">
         <h2 className="mb-1 font-semibold">Exportar (cole nas plataformas)</h2>
+        {isStaging() && (
+          <p className="mb-2 rounded-lg bg-amber-100 p-2 text-sm font-medium text-amber-900">
+            Ambiente de testes: estes links estão desligados. Não cole no Airbnb nem no Booking.
+          </p>
+        )}
         <p className="mb-3 text-xs text-slate-500">
           Cada link leva reservas e bloqueios ativos deste quarto, exceto os que vieram da própria plataforma. Não compartilhe: quem tiver o link vê as datas ocupadas.
         </p>

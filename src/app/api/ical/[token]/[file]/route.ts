@@ -1,3 +1,4 @@
+import { isStaging } from "@/lib/app-env";
 import { todaySP, addDays } from "@/lib/dates";
 import { eventsForExport } from "@/lib/domain/rules";
 import { buildIcal } from "@/lib/ical/export";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 const TARGETS = { "airbnb.ics": "airbnb", "booking.ics": "booking" } as const;
 
 export async function GET(_req: Request, ctx: { params: Promise<{ token: string; file: string }> }) {
+  // Em testes a exportação fica desligada: dados fictícios não podem ir para as plataformas
+  if (isStaging()) return new Response("Exportação desligada no ambiente de testes", { status: 404 });
   const { token, file } = await ctx.params;
   const target = TARGETS[file as keyof typeof TARGETS];
   if (!target || !/^[a-f0-9]{16,128}$/.test(token)) return new Response("Não encontrado", { status: 404 });

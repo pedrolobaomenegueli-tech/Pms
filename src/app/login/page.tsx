@@ -2,6 +2,8 @@ import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { login } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
