@@ -3,7 +3,7 @@
 Sistema de gestão de reservas para aluguel por temporada (Airbnb + Booking.com), sincronizado por iCal.
 Um único usuário. Next.js 16 (App Router) + TypeScript + Tailwind, Supabase (Postgres + Auth), hospedagem na Vercel.
 
-**Módulos:** início com estado dos quartos (check-in, check-out e limpeza), calendário, reservas, limpeza/tarefas, propriedades/quartos/feeds iCal.
+**Módulos:** início com estado dos quartos e alertas, calendário, reservas, limpeza com checklist e link para a equipe, manutenção, propriedades/quartos/feeds iCal.
 
 ---
 
@@ -20,7 +20,11 @@ Um único usuário. Next.js 16 (App Router) + TypeScript + Tailwind, Supabase (P
 Opção A (mais simples, pelo painel):
 
 1. No Supabase, abra **SQL Editor** > **New query**.
-2. Cole todo o conteúdo de `supabase/migrations/20261125000001_schema.sql` e clique em **Run**.
+2. Rode, **um de cada vez e nesta ordem**, o conteúdo de cada arquivo de `supabase/migrations/` (cole e clique em **Run**):
+   1. `20261125000001_schema.sql`
+   2. `20261126000001_checkin_checkout.sql`
+   3. `20261127000001_checklists_cleanings.sql`
+   4. `20261127000002_maintenance.sql`
 
 Opção B (Supabase CLI):
 
@@ -71,7 +75,8 @@ Em **Quartos**:
 
 1. Crie as 4 propriedades.
 2. Dentro de cada propriedade, adicione os quartos (pode adicionar mais depois).
-3. Abra cada quarto para colar os feeds iCal (passo 7).
+3. Clique em **Editar** na propriedade para montar o **checklist de limpeza** (modelo) e ajustar o **horário padrão de check-in**.
+4. Abra cada quarto para colar os feeds iCal (passo 7) e, se quiser, adicionar itens extras ao checklist.
 
 ### 7. Conectar Airbnb e Booking (iCal)
 
@@ -172,6 +177,48 @@ Reservas que terminaram há mais de 7 dias com o fluxo aberto são ignoradas na 
 
 ---
 
+## Limpeza
+
+**Checklist**
+
+- Cada propriedade tem um **modelo** (ex.: trocar roupa de cama, repor amenities, limpar banheiro). Edite em **Quartos** > **Editar** na propriedade: adicionar, remover e reordenar (↑ ↓).
+- Cada quarto herda o modelo e pode ter **itens extras** (tela do quarto).
+
+**Execução**
+
+- A limpeza é **criada ao realizar o check-out**, com uma **cópia** do checklist do quarto naquele momento. Mudar o modelo depois não altera limpezas já criadas.
+- Em **Limpeza**, toque em **Abrir limpeza**, marque os itens um a um e toque em **Concluída**. Dá para concluir com itens pendentes; a tela mostra quantos ficaram de fora.
+- **Concluída** é o mesmo que **Finalizar limpeza** no fluxo da estadia (os dois marcam a estadia como Finalizada). **Reabrir** desfaz.
+- Quartos com check-out feito antes desta versão ganham a limpeza quando você a abre.
+- Na limpeza, **Registrar problema** cria uma manutenção já vinculada ao quarto.
+
+**Prioridade (lista do dia)**
+
+1. **Urgente · virada**: sai e entra no mesmo dia no mesmo quarto.
+2. **Check-in amanhã**.
+3. **Saída do dia**.
+4. **Pendente de dias anteriores**: check-out feito há até 14 dias e limpeza não concluída.
+
+Concluídas vão para o fim. O horário do próximo check-in é o da reserva (campo **Horário de check-in**, opcional) ou o padrão da propriedade.
+
+**Link da equipe (WhatsApp)**
+
+1. Em **Limpeza**, abra **📲 Enviar para a equipe**.
+2. Em cada propriedade, **Copiar mensagem para WhatsApp** copia um texto com a data, a lista resumida e o link. Cole no grupo da equipe.
+3. O link abre uma página leve, sem login, com propriedade, quarto, prioridade, horário do próximo check-in e checklist. **Não mostra** nome, telefone, nº de hóspedes, observações nem dados da reserva (LGPD).
+4. A página tem botões de dia anterior/próximo. O link é por propriedade: quem tem o link vê qualquer dia daquela propriedade, só para leitura.
+5. **Gerar novo link** invalida o anterior na hora (use se o link vazar ou alguém sair da equipe). Também fica em **Quartos** > **Editar** na propriedade.
+6. Antes do check-out, a página mostra o checklist previsto; depois, a cópia da limpeza com o que já foi marcado.
+
+## Manutenção
+
+- Menu **Manutenção**: lista com filtros (propriedade, quarto, status, prioridade). Não resolvidas primeiro, por prioridade (urgente, alta, média, baixa).
+- Campos: título, descrição, prioridade, status (aberto, em andamento, resolvido), data de abertura, data de resolução (automática), custo e observações.
+- **Bloquear quarto**: ao registrar (ou depois, na tela do problema), escolha o período. O sistema cria um **bloqueio manual** que entra na exportação iCal para o Airbnb e o Booking. Se o período cair sobre uma reserva existente, o bloqueio é criado e a tela mostra um aviso.
+- Ao resolver um problema com bloqueio ativo, escolha **Resolver e remover bloqueio** ou **Resolver e manter bloqueio**.
+- Histórico completo na tela de cada quarto.
+- **Alertas na tela inicial**: manutenções urgentes abertas e check-ins entre hoje e daqui a 3 dias em quartos com manutenção alta ou urgente aberta.
+
 ## Limitações conhecidas
 
 - **iCal tem atraso**: Airbnb e Booking leem o feed do PMS no ritmo deles (pode levar horas). O PMS detecta overbooking, mas não impede.
@@ -200,13 +247,17 @@ src/
       page.tsx             início: estado dos quartos + alertas
       calendario/          quartos x 30 dias
       reservas/            lista, nova, detalhe/edição
-      limpeza/             check-outs do dia e tarefas
-      unidades/            propriedades, quartos, feeds e exportação
+      limpeza/             lista do dia por prioridade, detalhe com checklist, tarefas
+      manutencao/          problemas por quarto, bloqueio
+      unidades/            propriedades (checklist, link da equipe), quartos, feeds e exportação
+    equipe/[token]/        página pública da equipe (sem login)
     api/sync/              POST protegido por SYNC_SECRET
     api/ical/[token]/[file]/  exportação airbnb.ics / booking.ics
   lib/
     ical/                  parser e gerador iCal
     domain/rules.ts        eco, conflitos, exclusão por canal, estado do quarto
+    domain/cleaning.ts     checklist, limpeza no check-out, prioridade, visão da equipe
+    domain/maintenance.ts  ordenação, bloqueio e alertas de manutenção
     sync/                  plano (puro) e execução da sincronização
     supabase/              clientes (sessão do usuário e service role)
   proxy.ts                 renova a sessão e protege as páginas
