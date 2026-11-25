@@ -6,14 +6,14 @@ import { findConflicts, roomStatus, ROOM_STATE_LABEL, type RoomState } from "@/l
 import { loadActiveStays, loadFeeds, loadProperties, unitLabel } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
 import { SOURCE_LABEL, type Reservation } from "@/lib/types";
-import { cx } from "@/lib/ui";
+import { cx, STAGE_SOFT } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
 
 const STATE_STYLE: Record<RoomState, string> = {
-  hospedado: "bg-sky-100 text-sky-900 ring-sky-300",
-  em_limpeza: "bg-yellow-100 text-yellow-900 ring-yellow-300",
-  aguardando_checkin: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+  hospedado: STAGE_SOFT.hospedado,
+  em_limpeza: STAGE_SOFT.em_limpeza,
+  aguardando_checkin: STAGE_SOFT.aguardando_checkin,
   bloqueado: "bg-slate-200 text-slate-700 ring-slate-300",
   livre: "bg-white text-slate-700 ring-slate-200",
 };

@@ -1,20 +1,14 @@
 import { setStage } from "@/app/(app)/limpeza/actions";
 import { formatDateTimeSP } from "@/lib/dates";
-import { NEXT_ACTION, STAGE_LABEL, stageOf, type Stage, type StageFields } from "@/lib/domain/rules";
+import { NEXT_ACTION, STAGE_LABEL, stageOf, type StageFields } from "@/lib/domain/rules";
 import type { Reservation } from "@/lib/types";
-import { cx } from "@/lib/ui";
+import { cx, STAGE_SOFT } from "@/lib/ui";
 import { SubmitButton } from "./SubmitButton";
 
-export const STAGE_STYLE: Record<Stage, string> = {
-  aguardando_checkin: "bg-emerald-100 text-emerald-900",
-  hospedado: "bg-sky-100 text-sky-900",
-  em_limpeza: "bg-yellow-100 text-yellow-900",
-  finalizado: "bg-slate-200 text-slate-700",
-};
 
 export function StageBadge({ r }: { r: StageFields }) {
   const s = stageOf(r);
-  return <span className={cx("rounded-full px-2 py-0.5 text-xs font-semibold", STAGE_STYLE[s])}>{STAGE_LABEL[s]}</span>;
+  return <span className={cx("rounded-full px-2 py-0.5 text-xs font-semibold", STAGE_SOFT[s])}>{STAGE_LABEL[s]}</span>;
 }
 
 /** Botão da próxima etapa (check-in, check-out, finalizar limpeza) + desfazer. */

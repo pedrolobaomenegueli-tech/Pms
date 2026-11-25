@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { addDays, diffDays, isIsoDate, todaySP, weekday } from "@/lib/dates";
 import { findConflicts, stageOf, STAGE_LABEL, visibleStays, type Stage } from "@/lib/domain/rules";
+import type { Source } from "@/lib/types";
 import { loadActiveStays, loadProperties } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
 import { SOURCE_LABEL, type Reservation } from "@/lib/types";
-import { cx, SOURCE_BG } from "@/lib/ui";
+import { cx, SOURCE_BORDER, STAGE_FILL } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -62,17 +63,27 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <Link href="/reservas/nova" className="btn-primary">+ Nova reserva</Link>
       </div>
 
-      <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-600">
-        {(["airbnb", "booking", "manual", "outro"] as const).map((s) => (
-          <span key={s} className="flex items-center gap-1">
-            <span className={cx("h-3 w-5 rounded", SOURCE_BG[s])} /> {SOURCE_LABEL[s]}
+      <div className="mb-2 space-y-1 text-xs text-slate-600">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="w-20 font-semibold text-slate-700">Cor = estado</span>
+          {(Object.keys(STAGE_LABEL) as Stage[]).map((st) => (
+            <span key={st} className="flex items-center gap-1">
+              <span className={cx("h-3 w-5 rounded", STAGE_FILL[st])} /> {STAGE_ICON[st]}{STAGE_LABEL[st]}
+            </span>
+          ))}
+          <span className="flex items-center gap-1"><span className="bar-bloqueio h-3 w-5 rounded" /> Bloqueio</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="w-20 font-semibold text-slate-700">Borda = canal</span>
+          {(["airbnb", "booking", "manual", "outro"] as Source[]).map((src) => (
+            <span key={src} className="flex items-center gap-1">
+              <span className={cx("h-3 w-5 rounded border-[3px] bg-white", SOURCE_BORDER[src])} /> {SOURCE_LABEL[src]}
+            </span>
+          ))}
+          <span className="flex items-center gap-1">
+            <span className="h-3 w-5 rounded bg-white ring-2 ring-red-600 ring-offset-1" /> ⚠️ Conflito
           </span>
-        ))}
-        <span className="flex items-center gap-1"><span className="bar-bloqueio h-3 w-5 rounded" /> Bloqueio</span>
-        <span className="flex items-center gap-1"><span className="h-3 w-5 rounded ring-2 ring-red-600" /> Conflito</span>
-        <span>🛏️ Hospedado</span>
-        <span>🧹 Em limpeza</span>
-        <span>✓ Finalizado</span>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
@@ -135,12 +146,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                               href={`/reservas/${r.id}`}
                               title={`${SOURCE_LABEL[r.source]} ${isBlock ? "bloqueio" : `reserva, ${STAGE_LABEL[stage]}`} ${r.check_in} → ${r.check_out}`}
                               className={cx(
-                                "absolute flex items-center overflow-hidden rounded-md px-1.5 text-xs font-medium whitespace-nowrap shadow-sm",
-                                isBlock ? "bar-bloqueio text-slate-800" : cx(SOURCE_BG[r.source], "text-white"),
-                                conflictIds.has(r.id) && "ring-2 ring-red-600 ring-offset-1",
+                                "absolute flex items-center overflow-hidden rounded-md px-1 text-xs font-medium whitespace-nowrap shadow-sm",
+                                "border-[3px]",
+                                SOURCE_BORDER[r.source],
+                                isBlock ? "bar-bloqueio text-slate-800" : STAGE_FILL[stage],
+                                conflictIds.has(r.id) && "ring-2 ring-red-600 ring-offset-2",
                               )}
                               style={{ left: left + 1, width: Math.max(right - left - 2, 8), top: 4 + lane * LANE, height: LANE - 4 }}
                             >
+                              {conflictIds.has(r.id) ? "⚠️ " : ""}
                               {isBlock ? "Bloqueio" : `${STAGE_ICON[stage]}${r.guest_name || SOURCE_LABEL[r.source]}`}
                             </Link>
                           );
