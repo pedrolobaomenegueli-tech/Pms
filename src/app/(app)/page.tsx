@@ -5,8 +5,8 @@ import { addDays, formatDayMonth, formatShort, todaySP, weekday } from "@/lib/da
 import { findConflicts, roomStatus, ROOM_STATE_LABEL, type RoomState } from "@/lib/domain/rules";
 import { loadActiveStays, loadFeeds, loadProperties, unitLabel } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
-import { SOURCE_LABEL, type Reservation } from "@/lib/types";
-import { cx, STAGE_SOFT } from "@/lib/ui";
+import type { Reservation } from "@/lib/types";
+import { cx, STAGE_SOFT, stayLabel } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ function Guest({ r, prefix }: { r?: Reservation; prefix: string }) {
   if (!r) return null;
   return (
     <Link href={`/reservas/${r.id}`} className="block truncate text-xs hover:underline">
-      {prefix}: {r.guest_name || SOURCE_LABEL[r.source]} · {formatShort(r.check_in)}→{formatShort(r.check_out)}
+      {prefix}: {stayLabel(r)} · {formatShort(r.check_in)}→{formatShort(r.check_out)}
     </Link>
   );
 }
@@ -92,7 +92,7 @@ export default async function HomePage() {
                       ))}
                       {s.urgent && s.arrival && (
                         <p className="mt-1 text-xs font-bold text-red-700">
-                          ⚡ Chega hoje: {s.arrival.guest_name || SOURCE_LABEL[s.arrival.source]}. Liberar o quarto antes da chegada.
+                          ⚡ Chega hoje: {stayLabel(s.arrival)}. Liberar o quarto antes da chegada.
                         </p>
                       )}
                       <div className="mt-1.5 space-y-0.5">

@@ -1,19 +1,11 @@
 import type { Stage } from "./domain/rules";
-import type { Source } from "./types";
+import { SOURCE_LABEL, type Source } from "./types";
 
 export const SOURCE_BG: Record<Source, string> = {
   airbnb: "bg-airbnb",
   booking: "bg-booking",
   manual: "bg-manual",
   outro: "bg-outro",
-};
-
-/** Borda das barras do calendário: identifica o canal. */
-export const SOURCE_BORDER: Record<Source, string> = {
-  airbnb: "border-airbnb",
-  booking: "border-booking",
-  manual: "border-manual",
-  outro: "border-outro",
 };
 
 export const SOURCE_TEXT: Record<Source, string> = {
@@ -53,3 +45,8 @@ export const STAGE_SOFT: Record<Stage, string> = {
   em_limpeza: "bg-slate-300 text-slate-900 ring-slate-500",
   finalizado: "bg-emerald-200 text-emerald-950 ring-emerald-500",
 };
+
+/** "Airbnb · Maria" ou só "Airbnb" (o iCal não traz o nome do hóspede). */
+export function stayLabel(r: { source: Source; guest_name: string | null }): string {
+  return r.guest_name ? `${SOURCE_LABEL[r.source]} · ${r.guest_name}` : SOURCE_LABEL[r.source];
+}

@@ -7,8 +7,8 @@ import { addDays, formatDate, formatDayMonth, formatShort, isIsoDate, todaySP, w
 import { visibleStays } from "@/lib/domain/rules";
 import { loadActiveStays, loadProperties, loadTasks, unitLabel } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
-import { SOURCE_LABEL, TASK_KIND_LABEL, type Reservation, type Task } from "@/lib/types";
-import { cx } from "@/lib/ui";
+import { TASK_KIND_LABEL, type Reservation, type Task } from "@/lib/types";
+import { cx, stayLabel } from "@/lib/ui";
 import { createTask, deleteTask, toggleTask } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -87,11 +87,11 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
                   </span>
                 </div>
                 <Link href={`/reservas/${r.id}`} className="text-sm text-slate-600 hover:underline">
-                  Sai: {r.guest_name || SOURCE_LABEL[r.source]} ({formatShort(r.check_in)}→{formatShort(r.check_out)})
+                  Sai: {stayLabel(r)} ({formatShort(r.check_in)}→{formatShort(r.check_out)})
                 </Link>
                 {arrival && (
                   <p className={cx("mt-1 text-sm", r.cleaning_done_at ? "text-slate-600" : "font-semibold text-red-700")}>
-                    {r.cleaning_done_at ? "Chega hoje" : "⚡ Check-in no mesmo dia"}: {arrival.guest_name || SOURCE_LABEL[arrival.source]}
+                    {r.cleaning_done_at ? "Chega hoje" : "⚡ Check-in no mesmo dia"}: {stayLabel(arrival)}
                     {arrival.guests ? `, ${arrival.guests} hósp.` : ""}
                   </p>
                 )}
@@ -127,7 +127,7 @@ export default async function CleaningPage({ searchParams }: { searchParams: Pro
             {onlyCheckins.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
                 <Link href={`/reservas/${r.id}`} className="hover:underline">
-                  <strong>{label(r.unit_id)}</strong>: {r.guest_name || SOURCE_LABEL[r.source]}
+                  <strong>{label(r.unit_id)}</strong>: {stayLabel(r)}
                   {r.guests ? `, ${r.guests} hósp.` : ""}
                 </Link>
                 <div className="flex items-center gap-2"><StageBadge r={r} /><StageButtons r={r} showUndo={false} /></div>
