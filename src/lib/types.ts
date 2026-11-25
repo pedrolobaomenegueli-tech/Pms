@@ -11,6 +11,9 @@ export interface Property {
   notes: string | null;
   active: boolean;
   sort_order: number;
+  /** "15:00:00" */
+  checkin_time: string;
+  team_token: string;
 }
 
 export interface Unit {
@@ -52,6 +55,8 @@ export interface Reservation {
   cancelled_at: string | null;
   checked_in_at: string | null;
   checked_out_at: string | null;
+  /** Horário combinado com o hóspede ("14:00:00"); null = padrão da propriedade */
+  check_in_time: string | null;
   cleaning_done_at: string | null;
   ical_summary: string | null;
   ical_description: string | null;
@@ -88,4 +93,61 @@ export const TASK_KIND_LABEL: Record<TaskKind, string> = {
   limpeza: "Limpeza",
   manutencao: "Manutenção",
   outro: "Outro",
+};
+
+export interface ChecklistItem {
+  id: string;
+  property_id: string | null;
+  unit_id: string | null;
+  label: string;
+  sort_order: number;
+}
+
+export interface Cleaning {
+  id: string;
+  reservation_id: string;
+  unit_id: string;
+  date: string;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface CleaningItem {
+  id: string;
+  cleaning_id: string;
+  label: string;
+  sort_order: number;
+  done_at: string | null;
+}
+
+export type MaintenancePriority = "baixa" | "media" | "alta" | "urgente";
+export type MaintenanceStatus = "aberto" | "em_andamento" | "resolvido";
+
+export interface MaintenanceIssue {
+  id: string;
+  unit_id: string;
+  title: string;
+  description: string | null;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  opened_on: string;
+  resolved_at: string | null;
+  cost: number | string | null;
+  notes: string | null;
+  block_reservation_id: string | null;
+  cleaning_id: string | null;
+  created_at: string;
+}
+
+export const MAINT_PRIORITY_LABEL: Record<MaintenancePriority, string> = {
+  baixa: "Baixa",
+  media: "Média",
+  alta: "Alta",
+  urgente: "Urgente",
+};
+
+export const MAINT_STATUS_LABEL: Record<MaintenanceStatus, string> = {
+  aberto: "Aberto",
+  em_andamento: "Em andamento",
+  resolvido: "Resolvido",
 };
