@@ -1,9 +1,9 @@
 # PMS Temporada
 
-Sistema de gestão de reservas para aluguel por temporada (Airbnb + Booking.com), sincronizado por iCal.
+Sistema de gestão de reservas para aluguel por temporada (Airbnb + Booking.com). As reservas virão do channel manager **HotelLink** via API (integração ainda não construída; enquanto isso, as reservas são lançadas manualmente).
 Um único usuário. Next.js 16 (App Router) + TypeScript + Tailwind, Supabase (Postgres + Auth), hospedagem na Vercel.
 
-**Módulos:** início com estado dos quartos e alertas, calendário, reservas, limpeza com checklist e link para a equipe, manutenção, propriedades/quartos/feeds iCal.
+**Módulos:** início com estado dos quartos e alertas, calendário, reservas, limpeza com checklist e link para a equipe, manutenção, propriedades e quartos.
 
 ---
 
@@ -26,6 +26,7 @@ Opção A (mais simples, pelo painel):
    3. `20261127000001_checklists_cleanings.sql`
    4. `20261127000002_maintenance.sql`
    5. `20261128000001_channel_inbox.sql`
+   6. `20261129000001_remove_ical.sql`
 
 Opção B (Supabase CLI):
 
@@ -52,22 +53,16 @@ Em **Project Settings** > **API Keys** (e **Data API** para a URL):
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | chave `anon` (legada) ou a **publishable key** (`sb_publishable_...`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | chave `service_role` (legada) ou a **secret key** (`sb_secret_...`). **Nunca** exponha. |
 
-Gere também o segredo do sync:
-
-```bash
-openssl rand -hex 32
-```
-
 ### 5. Deploy na Vercel
 
 1. Suba este repositório no GitHub (já está).
 2. Em <https://vercel.com/new>, importe o repositório. Framework: Next.js (detectado sozinho).
 3. Em **Environment Variables**, cadastre as 5 variáveis (modelo em `.env.example`):
-   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SYNC_SECRET`, `APP_URL`.
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`, `APP_ENV=production`.
    No primeiro deploy, se ainda não souber o domínio, use `https://NOME-DO-PROJETO.vercel.app`.
 4. Clique em **Deploy**.
 5. Confirme o domínio final em **Settings** > **Domains**. Se `APP_URL` estiver diferente, corrija e faça **Redeploy**
-   (os links de exportação iCal usam essa variável).
+   (o link da equipe de limpeza usa essa variável).
 6. Abra o app, faça login com o usuário criado no passo 3.
 
 ### 6. Cadastrar propriedades e quartos
@@ -77,52 +72,7 @@ Em **Quartos**:
 1. Crie as 4 propriedades.
 2. Dentro de cada propriedade, adicione os quartos (pode adicionar mais depois).
 3. Clique em **Editar** na propriedade para montar o **checklist de limpeza** (modelo) e ajustar o **horário padrão de check-in**.
-4. Abra cada quarto para colar os feeds iCal (passo 7) e, se quiser, adicionar itens extras ao checklist.
-
-### 7. Conectar Airbnb e Booking (iCal)
-
-Cada quarto tem **dois sentidos** de sincronização com cada plataforma:
-
-- **Importar** (plataforma → PMS): você copia o link de exportação da plataforma e cola no PMS.
-- **Exportar** (PMS → plataforma): você copia o link do PMS e cola na plataforma.
-
-Os nomes dos menus abaixo podem mudar conforme a plataforma atualiza o painel.
-
-**Airbnb** (por anúncio):
-
-1. **Agenda/Calendário** > escolha o anúncio > **Disponibilidade** > **Conectar calendários** (ou **Sincronizar calendários**).
-2. **Exportar calendário**: copie o link `.ics` do Airbnb. No PMS, em **Quartos** > quarto > **Adicionar feed**, escolha *Airbnb* e cole.
-3. **Importar calendário**: no PMS, copie o link **"Para o Airbnb"** (termina em `/airbnb.ics`) e cole no Airbnb. Nome sugerido: "PMS".
-
-**Booking.com** (Extranet, por acomodação):
-
-1. **Tarifas e disponibilidade** > **Sincronizar calendários** > selecione a acomodação.
-2. **Exportar calendário**: copie o link do Booking. No PMS, **Adicionar feed** > *Booking.com* > cole.
-3. **Importar calendário** / **Adicionar conexão de calendário**: cole o link **"Para o Booking.com"** do PMS (termina em `/booking.ics`).
-
-Ao salvar um feed, o PMS sincroniza na hora e mostra se deu certo.
-
-### 8. Ativar a sincronização automática (a cada 15 minutos)
-
-O cron da Vercel no plano Hobby não roda a cada 15 min, então usamos `pg_cron` + `pg_net` no Supabase.
-
-1. Abra `supabase/cron.sql`.
-2. Troque `<APP_URL>` pela URL do app (sem barra no final) e `<SYNC_SECRET>` pelo mesmo segredo da Vercel.
-3. Cole no **SQL Editor** do Supabase e rode.
-4. Depois de 15 minutos, confira:
-
-```sql
-select * from cron.job_run_details order by start_time desc limit 5;
-select status_code, content from net._http_response order by created desc limit 5;
-```
-
-`status_code = 200` significa que a rota respondeu. O conteúdo traz o resumo (`ok`, `erro`, `alerta`).
-
-Teste manual da rota:
-
-```bash
-curl -X POST https://SEU-APP.vercel.app/api/sync -H "Authorization: Bearer SEU_SYNC_SECRET"
-```
+4. Abra cada quarto se quiser adicionar itens extras ao checklist.
 
 ---
 
@@ -135,7 +85,6 @@ Use **dois projetos Supabase**: um de produção (suas reservas reais) e um de t
 | Supabase | projeto atual | **novo projeto** (ex.: `pms-testes`) |
 | Vercel | ambiente **Production** (branch `main`) | ambiente **Preview** (qualquer outra branch) |
 | `APP_ENV` | `production` | `staging` |
-| Exportação iCal | ligada | **desligada** |
 | Aparência | normal | faixa amarela "AMBIENTE DE TESTES" e cabeçalho marrom |
 
 **Passo a passo do ambiente de testes**
@@ -145,12 +94,10 @@ Use **dois projetos Supabase**: um de produção (suas reservas reais) e um de t
 3. Rode `supabase/seed-staging.sql` para ter dados fictícios. Ele se recusa a rodar se o banco já tiver propriedades.
 4. Bloqueie cadastros e crie seu usuário de testes (passo 3 da instalação).
 5. Na Vercel, em **Settings** > **Environment Variables**, cadastre as variáveis do projeto de testes marcando **só o ambiente Preview** (desmarque Production):
-   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SYNC_SECRET` (outro valor), `APP_URL` (a URL de preview), `APP_ENV=staging` e `CHANNEL_INBOX_SECRET`.
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL` (a URL de preview), `APP_ENV=staging` e `CHANNEL_INBOX_SECRET`.
 6. Confira que as variáveis de produção estão marcadas **só em Production**, com `APP_ENV=production`.
 7. Faça push em uma branch que não seja `main`: a Vercel gera uma URL de preview ligada ao banco de testes.
-8. Não ative o cron (`supabase/cron.sql`) no projeto de testes, a não ser que queira testar a sincronização.
 
-> Nunca cole links de exportação do ambiente de testes no Airbnb ou no Booking. Eles ficam desligados de propósito.
 
 **Caixa de entrada do channel manager**
 
@@ -163,28 +110,9 @@ Enquanto a integração com a HotelLink não existe, o endereço `/api/channel/i
 
 ## Regras de negócio
 
-**Importação**
+**Conflitos**
 
-- Upsert por `(feed_id, external_uid)`.
-- Airbnb: `SUMMARY` "Reserved" = reserva; contendo "Not available" = bloqueio. Booking: tudo entra como reserva (o iCal do Booking não diferencia).
-- A sincronização atualiza só datas, tipo e dados originais (SUMMARY/DESCRIPTION). **Nome do hóspede, nº de hóspedes, observações e limpeza nunca são sobrescritos.**
-- Evento que sumiu do feed vira **cancelado** (não é apagado), mas **só se ainda não terminou**: os feeds removem reservas antigas com o tempo e isso não é cancelamento.
-- Se o evento reaparecer, a reserva volta a ficar ativa.
-- Feed com erro (HTTP, tempo esgotado, resposta que não é iCal): o erro é salvo, aparece aviso na tela inicial e **nada é cancelado**.
-- Feed válido mas vazio, quando havia reservas futuras: status **alerta**, nada é cancelado.
-- Horários com fuso são convertidos para a data em America/Sao_Paulo.
-
-**Exportação**
-
-- `/api/ical/[token]/airbnb.ics` e `/api/ical/[token]/booking.ics`.
-- Inclui reservas e bloqueios ativos com check-out a partir de 30 dias atrás, **exceto** os originados no canal de destino e os ecos.
-- Eventos de dia inteiro, `DTEND` = check-out (exclusivo), `SUMMARY` = "Reservado", sem nome do hóspede.
-- O token é secreto. Se vazar, use **Gerar novos links** na tela do quarto e recole nas plataformas.
-
-**Eco e conflitos**
-
-- **Eco**: evento importado com check-in e check-out **idênticos** a outro evento ativo de outra origem e "mais forte" (reserva manual/Airbnb > evento do Booking > bloqueio). Ex.: reserva do Booking exportada ao Airbnb volta como "Not available". Ecos ficam ocultos no calendário, não contam como conflito e não são exportados.
-- **Conflito (overbooking)**: duas **reservas** ativas, não-eco, que se sobrepõem no mesmo quarto. Check-out e check-in no mesmo dia não é conflito. Bloqueios não geram conflito.
+- **Conflito (overbooking)**: duas **reservas** ativas que se sobrepõem no mesmo quarto. Check-out e check-in no mesmo dia não é conflito. Bloqueios não geram conflito.
 - Ao salvar reserva manual, o sistema impede sobreposição com qualquer reserva ou bloqueio ativo.
 
 **Fluxo da estadia (por reserva)**
@@ -193,7 +121,6 @@ Aguardando check-in → *Realizar check-in* → Hospedado → *Realizar check-ou
 
 - Cada passo grava data e hora e pode ser desfeito (volta uma etapa).
 - Se você pular uma etapa (ex.: check-out sem ter marcado check-in), as anteriores são preenchidas junto.
-- A sincronização iCal nunca altera esses campos.
 - Bloqueios não têm fluxo.
 
 **Estado do quarto (tela inicial)**
@@ -250,16 +177,15 @@ Concluídas vão para o fim. O horário do próximo check-in é o da reserva (ca
 
 - Menu **Manutenção**: lista com filtros (propriedade, quarto, status, prioridade). Não resolvidas primeiro, por prioridade (urgente, alta, média, baixa).
 - Campos: título, descrição, prioridade, status (aberto, em andamento, resolvido), data de abertura, data de resolução (automática), custo e observações.
-- **Bloquear quarto**: ao registrar (ou depois, na tela do problema), escolha o período. O sistema cria um **bloqueio manual** que entra na exportação iCal para o Airbnb e o Booking. Se o período cair sobre uma reserva existente, o bloqueio é criado e a tela mostra um aviso.
+- **Bloquear quarto**: ao registrar (ou depois, na tela do problema), escolha o período. O sistema cria um **bloqueio manual** no PMS. Se o período cair sobre uma reserva existente, o bloqueio é criado e a tela mostra um aviso. **Enquanto a integração com a HotelLink não existir, o bloqueio não chega às plataformas: bloqueie também na HotelLink.**
 - Ao resolver um problema com bloqueio ativo, escolha **Resolver e remover bloqueio** ou **Resolver e manter bloqueio**.
 - Histórico completo na tela de cada quarto.
 - **Alertas na tela inicial**: manutenções urgentes abertas e check-ins entre hoje e daqui a 3 dias em quartos com manutenção alta ou urgente aberta.
 
-## Limitações conhecidas
+## Limitações atuais
 
-- **iCal tem atraso**: Airbnb e Booking leem o feed do PMS no ritmo deles (pode levar horas). O PMS detecta overbooking, mas não impede.
-- O Booking marca datas fechadas manualmente da mesma forma que reservas. Elas aparecem como reserva e entram na lista de limpeza.
-- Bloqueios do Airbnb (inclusive a janela de disponibilidade futura e o tempo de preparação) são exportados para o Booking como datas indisponíveis.
+- **Sem integração com o channel manager ainda.** Reservas precisam ser lançadas à mão e bloqueios precisam ser repetidos na HotelLink. A caixa de entrada (`/api/channel/inbox`) só guarda mensagens para estudo.
+- **Booking vende por tipo de quarto.** O modelo atual supõe que toda reserva já tem quarto definido; será preciso criar tipos de quarto e atribuição de quarto quando a integração for construída.
 
 ---
 
@@ -285,20 +211,18 @@ src/
       reservas/            lista, nova, detalhe/edição
       limpeza/             lista do dia por prioridade, detalhe com checklist, tarefas
       manutencao/          problemas por quarto, bloqueio
-      unidades/            propriedades (checklist, link da equipe), quartos, feeds e exportação
+      unidades/            propriedades (checklist, link da equipe) e quartos
     equipe/[token]/        página pública da equipe (sem login)
-    api/sync/              POST protegido por SYNC_SECRET
-    api/ical/[token]/[file]/  exportação airbnb.ics / booking.ics
+    api/channel/inbox/     caixa de entrada do channel manager
   lib/
-    ical/                  parser e gerador iCal
-    domain/rules.ts        eco, conflitos, exclusão por canal, estado do quarto
+    domain/rules.ts        conflitos, fluxo da estadia, estado do quarto
     domain/cleaning.ts     checklist, limpeza no check-out, prioridade, visão da equipe
     domain/maintenance.ts  ordenação, bloqueio e alertas de manutenção
-    sync/                  plano (puro) e execução da sincronização
+    channel/               caixa de entrada do channel manager
     supabase/              clientes (sessão do usuário e service role)
   proxy.ts                 renova a sessão e protege as páginas
 supabase/
   migrations/              esquema + RLS
-  cron.sql                 agendamento pg_cron (rodar manualmente após o deploy)
-tests/                     vitest + exemplos de feed Airbnb/Booking
+  seed-staging.sql         dados fictícios para o ambiente de testes
+tests/                     vitest
 ```
