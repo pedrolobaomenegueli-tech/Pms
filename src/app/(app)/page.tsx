@@ -3,7 +3,7 @@ import { Alerts } from "@/components/Alerts";
 import { StageButtons } from "@/components/StageButtons";
 import { addDays, formatDayMonth, formatShort, todaySP, weekday } from "@/lib/dates";
 import { findConflicts, roomStatus, ROOM_STATE_LABEL, type RoomState } from "@/lib/domain/rules";
-import { loadActiveStays, loadFeeds, loadProperties, unitLabel } from "@/lib/data";
+import { loadActiveStays, loadProperties, unitLabel } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
 import type { MaintenanceIssue, Reservation } from "@/lib/types";
 import { checkinRisks } from "@/lib/domain/maintenance";
@@ -31,10 +31,9 @@ function Guest({ r, prefix }: { r?: Reservation; prefix: string }) {
 export default async function HomePage() {
   const { supabase } = await requireUser();
   const today = todaySP();
-  const [{ properties, units }, stays, feeds, { data: issueRows }] = await Promise.all([
+  const [{ properties, units }, stays, { data: issueRows }] = await Promise.all([
     loadProperties(supabase, { onlyActive: true }),
     loadActiveStays(supabase, addDays(today, -8), addDays(today, 366)),
-    loadFeeds(supabase),
     supabase.from("maintenance_issues").select("*").neq("status", "resolvido"),
   ]);
   const activeUnitIds = new Set(units.map((u) => u.id));
@@ -51,7 +50,6 @@ export default async function HomePage() {
   return (
     <div>
       <Alerts
-        feeds={feeds.filter((f) => activeUnitIds.has(f.unit_id))}
         conflicts={conflicts}
         label={label}
         urgentIssues={urgentIssues}

@@ -1,7 +1,7 @@
-// Regras de negócio puras: eco, conflitos, exclusão por canal e estado do quarto.
+// Regras de negócio puras: conflitos, fluxo da estadia e estado do quarto.
 
 import { addDays } from "../dates";
-import type { Channel, Kind, Reservation, Source } from "../types";
+import type { Reservation } from "../types";
 
 export type Stay = Pick<
   Reservation,
@@ -13,48 +13,9 @@ export function overlaps(a: { check_in: string; check_out: string }, b: { check_
   return a.check_in < b.check_out && b.check_in < a.check_out;
 }
 
-/**
- * "Força" de um evento para decidir quem é eco de quem quando as datas
- * são idênticas. Bloqueio importado < evento do Booking (que não
- * diferencia reserva de bloqueio) < reserva do Airbnb / manual / outro.
- */
-function strength(s: { source: Source; kind: Kind }): number {
-  if (s.kind === "bloqueio") return 1;
-  if (s.source === "booking") return 2;
-  return 3;
-}
-
-/**
- * Eco = evento importado que só repete as datas (check-in e check-out
- * idênticos) de outro evento ativo, mais forte, de outra origem, no mesmo quarto.
- * Ex.: reserva do Booking exportada para o Airbnb volta como "Not available".
- * Eventos manuais nunca são eco.
- */
-export function findEchoIds(items: Stay[]): Set<string> {
-  const active = items.filter((r) => r.status === "ativa");
-  const byKey = new Map<string, Stay[]>();
-  for (const r of active) {
-    const key = `${r.unit_id}|${r.check_in}|${r.check_out}`;
-    const list = byKey.get(key);
-    if (list) list.push(r);
-    else byKey.set(key, [r]);
-  }
-  const echoes = new Set<string>();
-  for (const group of byKey.values()) {
-    if (group.length < 2) continue;
-    for (const r of group) {
-      if (r.source === "manual") continue;
-      const st = strength(r);
-      if (group.some((o) => o.id !== r.id && o.source !== r.source && strength(o) > st)) echoes.add(r.id);
-    }
-  }
-  return echoes;
-}
-
-/** Ativos e não-eco: o que aparece no calendário e conta para conflitos. */
+/** Reservas e bloqueios ativos: o que aparece no calendário e conta para conflitos. */
 export function visibleStays<T extends Stay>(items: T[]): T[] {
-  const echoes = findEchoIds(items);
-  return items.filter((r) => r.status === "ativa" && !echoes.has(r.id));
+  return items.filter((r) => r.status === "ativa");
 }
 
 export interface Conflict<T extends Stay = Stay> {
@@ -64,7 +25,7 @@ export interface Conflict<T extends Stay = Stay> {
 }
 
 /**
- * Overbooking: duas RESERVAS ativas, não-eco, que se sobrepõem no mesmo quarto.
+ * Overbooking: duas RESERVAS ativas que se sobrepõem no mesmo quarto.
  * Bloqueios não geram conflito (bloqueio só indica indisponibilidade).
  */
 export function findConflicts<T extends Stay>(items: T[]): Conflict<T>[] {
@@ -95,15 +56,6 @@ export function findOverlapsFor<T extends Stay>(
   return visibleStays(items).filter(
     (r) => r.id !== candidate.id && r.unit_id === candidate.unit_id && overlaps(r, candidate),
   );
-}
-
-/**
- * Eventos exportados para um canal: ativos, não-eco, que terminam a partir
- * de (hoje - 30 dias), EXCETO os originados no próprio canal de destino.
- */
-export function eventsForExport<T extends Stay>(items: T[], target: Exclude<Channel, "outro">, today: string): T[] {
-  const from = addDays(today, -30);
-  return visibleStays(items).filter((r) => r.source !== target && r.check_out > from);
 }
 
 // ---------------------------------------------------------------------------

@@ -61,7 +61,7 @@ export function IssueForm({
             <input type="checkbox" name="bloquear" /> Bloquear quarto
           </label>
           <p className="mb-2 mt-1 text-xs text-slate-500">
-            Cria um bloqueio manual que vai para o Airbnb e o Booking pela exportação iCal.
+            Cria um bloqueio manual no PMS. Enquanto não houver integração com o channel manager, bloqueie também na HotelLink.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>

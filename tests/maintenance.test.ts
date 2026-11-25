@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildMaintenanceBlock, checkinRisks, sortIssues } from "@/lib/domain/maintenance";
-import { eventsForExport, findConflicts, type Stay } from "@/lib/domain/rules";
+import { findConflicts, visibleStays, type Stay } from "@/lib/domain/rules";
 import type { MaintenanceIssue } from "@/lib/types";
 
 function issue(p: Partial<MaintenanceIssue>): MaintenanceIssue {
@@ -40,13 +40,12 @@ describe("bloqueio de manutenção", () => {
     });
   });
 
-  it("entra na exportação iCal do Airbnb e do Booking", () => {
-    expect(eventsForExport([block], "airbnb", "2026-12-01").map((r) => r.id)).toEqual(["blk"]);
-    expect(eventsForExport([block], "booking", "2026-12-01").map((r) => r.id)).toEqual(["blk"]);
+  it("aparece como bloqueio ativo do quarto", () => {
+    expect(visibleStays([block]).map((r) => r.id)).toEqual(["blk"]);
   });
 
-  it("sai da exportação quando removido (cancelado)", () => {
-    expect(eventsForExport([{ ...block, status: "cancelada" }], "airbnb", "2026-12-01")).toEqual([]);
+  it("some quando removido (cancelado)", () => {
+    expect(visibleStays([{ ...block, status: "cancelada" }])).toEqual([]);
   });
 
   it("sobre uma reserva existente é permitido e não vira conflito de overbooking", () => {

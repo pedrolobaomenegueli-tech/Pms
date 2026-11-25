@@ -47,7 +47,7 @@ export const STAGE_SOFT: Record<Stage, string> = {
   finalizado: "bg-emerald-200 text-emerald-950 ring-emerald-500",
 };
 
-/** "Airbnb · Maria" ou só "Airbnb" (o iCal não traz o nome do hóspede). */
+/** "Airbnb · Maria" ou só "Airbnb" quando não há nome. */
 export function stayLabel(r: { source: Source; guest_name: string | null }): string {
   return r.guest_name ? `${SOURCE_LABEL[r.source]} · ${r.guest_name}` : SOURCE_LABEL[r.source];
 }

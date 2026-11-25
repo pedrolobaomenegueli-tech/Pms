@@ -125,11 +125,11 @@ export default async function IssuePage({
         {block && blockActive ? (
           <>
             <p className="text-sm">
-              🔒 Bloqueado de {formatDate(block.check_in)} até {formatDate(block.check_out)} (saída). Vai para o Airbnb e o Booking pela exportação iCal.
+              🔒 Bloqueado de {formatDate(block.check_in)} até {formatDate(block.check_out)} (saída). Enquanto a integração com o channel manager não existir, este bloqueio fica só no PMS: bloqueie também na HotelLink.
             </p>
             <form action={removeBlock}>
               <input type="hidden" name="id" value={issue.id} />
-              <SubmitButton className="btn-secondary" confirm="Remover o bloqueio? As datas voltam a ficar livres nas plataformas." pendingText="…">
+              <SubmitButton className="btn-secondary" confirm="Remover o bloqueio do PMS?" pendingText="…">
                 Remover bloqueio
               </SubmitButton>
             </form>

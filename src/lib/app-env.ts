@@ -1,6 +1,7 @@
 // Ambiente da instalação: produção (padrão) ou testes.
-// Em testes: faixa de aviso em todas as telas e exportação iCal desligada,
-// para que dados de teste nunca cheguem ao Airbnb ou ao Booking.
+// Em testes: faixa de aviso em todas as telas, para nunca confundir os
+// dados fictícios com os reais. A integração com o channel manager deve
+// usar o sandbox quando isStaging() for verdadeiro.
 
 export type AppEnv = "production" | "staging";
 

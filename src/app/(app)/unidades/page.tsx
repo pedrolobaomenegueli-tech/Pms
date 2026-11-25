@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { ActionForm } from "@/components/ActionForm";
-import { FeedStatus } from "@/components/FeedStatus";
 import { SubmitButton } from "@/components/SubmitButton";
-import { SyncNowButton } from "@/components/SyncNowButton";
-import { loadFeeds, loadProperties } from "@/lib/data";
+import { loadProperties } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
-import { CHANNEL_LABEL } from "@/lib/types";
 import { cx } from "@/lib/ui";
 import { createProperty, createUnit } from "./actions";
 
@@ -13,13 +10,12 @@ export const dynamic = "force-dynamic";
 
 export default async function UnitsPage() {
   const { supabase } = await requireUser();
-  const [{ properties, units }, feeds] = await Promise.all([loadProperties(supabase), loadFeeds(supabase)]);
+  const { properties, units } = await loadProperties(supabase);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h1 className="text-xl font-semibold">Propriedades e quartos</h1>
-        <SyncNowButton label="Sincronizar todos agora" />
       </div>
 
       {properties.map((p) => {
@@ -35,20 +31,11 @@ export default async function UnitsPage() {
             </div>
             <ul className="divide-y divide-slate-100">
               {pu.map((u) => {
-                const uf = feeds.filter((f) => f.unit_id === u.id);
                 return (
                   <li key={u.id}>
                     <Link href={`/unidades/${u.id}`} className="flex flex-wrap items-center gap-2 py-2 hover:bg-slate-50">
                       <span className="h-3 w-3 rounded-full" style={{ background: u.color }} />
                       <span className={cx("font-medium", !u.active && "text-slate-400 line-through")}>{u.name}</span>
-                      <span className="ml-auto flex flex-wrap gap-2">
-                        {uf.length === 0 && <span className="text-xs text-slate-400">sem feeds</span>}
-                        {uf.map((f) => (
-                          <span key={f.id} className="flex items-center gap-1 text-xs text-slate-600">
-                            {CHANNEL_LABEL[f.channel]} <FeedStatus feed={f} />
-                          </span>
-                        ))}
-                      </span>
                     </Link>
                   </li>
                 );

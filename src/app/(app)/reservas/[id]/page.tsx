@@ -4,8 +4,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { StageBadge, StageButtons, StageTimeline } from "@/components/StageButtons";
 import { SubmitButton } from "@/components/SubmitButton";
 import { diffDays, formatDate, formatDateTimeSP } from "@/lib/dates";
-import { findEchoIds } from "@/lib/domain/rules";
-import { loadActiveStays, loadProperties, unitLabel } from "@/lib/data";
+import { loadProperties, unitLabel } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
 import { SOURCE_LABEL, type Reservation } from "@/lib/types";
 import { cancelReservation, reactivateReservation } from "../actions";
@@ -27,8 +26,6 @@ export default async function ReservationPage({
   if (!data) notFound();
   const r = data as Reservation;
   const { properties, units } = await loadProperties(supabase);
-  const neighbours = r.status === "ativa" ? await loadActiveStays(supabase, r.check_in, r.check_out, r.unit_id) : [];
-  const isEcho = findEchoIds(neighbours).has(r.id);
   const nights = diffDays(r.check_in, r.check_out);
 
   return (
@@ -45,11 +42,6 @@ export default async function ReservationPage({
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
           {r.status === "cancelada" && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-800">Cancelada em {formatDateTimeSP(r.cancelled_at)}</span>
-          )}
-          {isEcho && (
-            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700">
-              Eco de outra reserva com as mesmas datas (oculto no calendário)
-            </span>
           )}
           {r.kind === "reserva" && r.status === "ativa" && <StageBadge r={r} />}
         </div>
@@ -86,17 +78,6 @@ export default async function ReservationPage({
         </div>
       )}
 
-      {r.source !== "manual" && (
-        <div className="card text-sm">
-          <h2 className="mb-2 font-semibold">Dados originais do iCal</h2>
-          <dl className="space-y-1 break-words">
-            <div><dt className="inline font-medium">UID: </dt><dd className="inline text-slate-600">{r.external_uid}</dd></div>
-            <div><dt className="inline font-medium">SUMMARY: </dt><dd className="inline text-slate-600">{r.ical_summary || "(vazio)"}</dd></div>
-            <div><dt className="font-medium">DESCRIPTION:</dt><dd className="whitespace-pre-wrap text-slate-600">{r.ical_description || "(vazio)"}</dd></div>
-            <div><dt className="inline font-medium">Visto no feed: </dt><dd className="inline text-slate-600">{formatDateTimeSP(r.last_seen_at)}</dd></div>
-          </dl>
-        </div>
-      )}
     </div>
   );
 }

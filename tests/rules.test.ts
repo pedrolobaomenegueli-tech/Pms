@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  eventsForExport,
   findConflicts,
-  findEchoIds,
   findOverlapsFor,
   applyStep,
   roomStatus,
@@ -33,70 +31,6 @@ function stay(
   };
 }
 
-describe("exclusão por canal na exportação", () => {
-  const today = "2026-11-25";
-  const items = [
-    stay("manual", "2026-12-01", "2026-12-03", { id: "manual" }),
-    stay("airbnb", "2026-12-05", "2026-12-08", { id: "airbnb" }),
-    stay("booking", "2026-12-10", "2026-12-12", { id: "booking" }),
-    stay("airbnb", "2026-12-15", "2026-12-20", { id: "airbnb-bloq", kind: "bloqueio" }),
-    stay("outro", "2026-12-21", "2026-12-23", { id: "outro" }),
-    stay("manual", "2026-12-24", "2026-12-26", { id: "cancelada", status: "cancelada" }),
-    stay("manual", "2026-10-01", "2026-10-05", { id: "antiga" }), // terminou há mais de 30 dias
-    stay("manual", "2026-10-20", "2026-10-27", { id: "recente" }), // terminou há 29 dias
-  ];
-  const ids = (ch: "airbnb" | "booking") => eventsForExport(items, ch, today).map((r) => r.id).sort();
-
-  it("airbnb.ics não leva nada que veio do Airbnb", () => {
-    expect(ids("airbnb")).toEqual(["booking", "manual", "outro", "recente"]);
-  });
-
-  it("booking.ics não leva nada que veio do Booking, mas leva bloqueios do Airbnb", () => {
-    expect(ids("booking")).toEqual(["airbnb", "airbnb-bloq", "manual", "outro", "recente"]);
-  });
-
-  it("não exporta ecos (evita loop entre plataformas)", () => {
-    const loop = [
-      stay("booking", "2027-01-05", "2027-01-08", { id: "bk" }),
-      stay("airbnb", "2027-01-05", "2027-01-08", { id: "eco", kind: "bloqueio" }),
-    ];
-    expect(eventsForExport(loop, "booking", today).map((r) => r.id)).toEqual([]);
-    expect(eventsForExport(loop, "airbnb", today).map((r) => r.id)).toEqual(["bk"]);
-  });
-});
-
-describe("eco", () => {
-  it("bloqueio do Airbnb com as mesmas datas de uma reserva do Booking é eco", () => {
-    const items = [stay("booking", "2026-12-05", "2026-12-08", { id: "bk" }), stay("airbnb", "2026-12-05", "2026-12-08", { id: "ab", kind: "bloqueio" })];
-    expect([...findEchoIds(items)]).toEqual(["ab"]);
-  });
-
-  it("evento do Booking com as mesmas datas de uma reserva do Airbnb é eco", () => {
-    const items = [stay("airbnb", "2026-12-05", "2026-12-08", { id: "ab" }), stay("booking", "2026-12-05", "2026-12-08", { id: "bk" })];
-    expect([...findEchoIds(items)]).toEqual(["bk"]);
-  });
-
-  it("datas diferentes não são eco", () => {
-    const items = [stay("booking", "2026-12-05", "2026-12-08"), stay("airbnb", "2026-12-05", "2026-12-09", { kind: "bloqueio" })];
-    expect(findEchoIds(items).size).toBe(0);
-  });
-
-  it("manual nunca é eco; ecos de reserva cancelada voltam a aparecer", () => {
-    const items = [
-      stay("airbnb", "2026-12-05", "2026-12-08", { id: "ab" }),
-      stay("manual", "2026-12-05", "2026-12-08", { id: "m", kind: "bloqueio" }),
-      stay("booking", "2026-12-10", "2026-12-12", { id: "bk", status: "cancelada" }),
-      stay("airbnb", "2026-12-10", "2026-12-12", { id: "ab2", kind: "bloqueio" }),
-    ];
-    expect(findEchoIds(items).size).toBe(0);
-  });
-
-  it("outro quarto não conta", () => {
-    const items = [stay("booking", "2026-12-05", "2026-12-08"), stay("airbnb", "2026-12-05", "2026-12-08", { kind: "bloqueio", unit_id: "u2" })];
-    expect(findEchoIds(items).size).toBe(0);
-  });
-});
-
 describe("conflitos (overbooking)", () => {
   it("detecta reservas que se sobrepõem no mesmo quarto", () => {
     const items = [stay("airbnb", "2026-12-01", "2026-12-05", { id: "a" }), stay("booking", "2026-12-04", "2026-12-07", { id: "b" })];
@@ -109,11 +43,8 @@ describe("conflitos (overbooking)", () => {
     expect(findConflicts([stay("airbnb", "2026-12-01", "2026-12-05"), stay("booking", "2026-12-05", "2026-12-07")])).toEqual([]);
   });
 
-  it("eco não é conflito", () => {
-    expect(findConflicts([stay("booking", "2026-12-01", "2026-12-05"), stay("airbnb", "2026-12-01", "2026-12-05", { kind: "bloqueio" })])).toEqual([]);
-  });
 
-  it("reservas idênticas de mesma força (Airbnb x manual) são conflito", () => {
+  it("reservas com datas idênticas de canais diferentes são conflito", () => {
     expect(findConflicts([stay("airbnb", "2026-12-01", "2026-12-05"), stay("manual", "2026-12-01", "2026-12-05")])).toHaveLength(1);
   });
 

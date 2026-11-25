@@ -37,7 +37,7 @@ export async function saveReservation(_: ActionState, fd: FormData): Promise<Act
     existing = data as Reservation;
   }
 
-  // Importada: só campos pessoais (a sincronização cuida de datas e status)
+  // Vinda do channel manager: só campos pessoais (datas e status vêm da integração)
   if (existing && existing.source !== "manual") {
     const { error } = await supabase.from("reservations").update(personal).eq("id", existing.id);
     if (error) return { error: error.message };

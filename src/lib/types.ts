@@ -1,8 +1,8 @@
+/** Canal de venda de onde a reserva veio (via channel manager) */
 export type Channel = "airbnb" | "booking" | "outro";
 export type Source = "manual" | Channel;
 export type Kind = "reserva" | "bloqueio";
 export type ReservationStatus = "ativa" | "cancelada";
-export type FeedStatus = "pendente" | "ok" | "erro" | "alerta";
 export type TaskKind = "limpeza" | "manutencao" | "outro";
 
 export interface Property {
@@ -24,19 +24,6 @@ export interface Unit {
   active: boolean;
   notes: string | null;
   sort_order: number;
-  export_token: string;
-}
-
-export interface Feed {
-  id: string;
-  unit_id: string;
-  channel: Channel;
-  url: string;
-  last_synced_at: string | null;
-  last_success_at: string | null;
-  status: FeedStatus;
-  error_message: string | null;
-  last_event_count: number | null;
 }
 
 export interface Reservation {
@@ -44,8 +31,6 @@ export interface Reservation {
   unit_id: string;
   source: Source;
   kind: Kind;
-  feed_id: string | null;
-  external_uid: string | null;
   check_in: string;
   check_out: string;
   guest_name: string | null;
@@ -58,9 +43,6 @@ export interface Reservation {
   /** Horário combinado com o hóspede ("14:00:00"); null = padrão da propriedade */
   check_in_time: string | null;
   cleaning_done_at: string | null;
-  ical_summary: string | null;
-  ical_description: string | null;
-  last_seen_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,12 +62,6 @@ export const SOURCE_LABEL: Record<Source, string> = {
   manual: "Manual",
   airbnb: "Airbnb",
   booking: "Booking",
-  outro: "Outro",
-};
-
-export const CHANNEL_LABEL: Record<Channel, string> = {
-  airbnb: "Airbnb",
-  booking: "Booking.com",
   outro: "Outro",
 };
 

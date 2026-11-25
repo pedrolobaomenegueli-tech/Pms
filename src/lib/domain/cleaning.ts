@@ -70,7 +70,7 @@ export interface CleaningEntry<R extends ListStay = ListStay> {
  * 3. demais saídas do dia, 4. pendentes de dias anteriores.
  * Concluídas vão para o fim. Empate: ordem dos quartos.
  *
- * `stays`: reservas/bloqueios ativos ao redor do dia (para eco e chegadas).
+ * `stays`: reservas/bloqueios ativos ao redor do dia (para saídas e chegadas).
  * `pending`: reservas com saída antes do dia e limpeza não finalizada.
  */
 export function buildCleaningList<R extends ListStay>(args: {
@@ -149,7 +149,7 @@ export interface TeamView {
 /**
  * Monta a visão pública. Copia SOMENTE: nome da propriedade e do quarto,
  * prioridade, situação, datas, horário do próximo check-in e itens do checklist.
- * Nunca inclui nome, telefone, nº de hóspedes, observações ou dados do iCal.
+ * Nunca inclui nome, telefone, nº de hóspedes, observações ou dados da reserva.
  */
 export function buildTeamView(args: {
   day: string;

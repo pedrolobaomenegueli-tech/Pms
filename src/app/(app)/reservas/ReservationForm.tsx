@@ -22,7 +22,7 @@ export function ReservationForm({
       {r && <input type="hidden" name="id" value={r.id} />}
       {imported && (
         <p className="rounded-lg bg-slate-100 p-2 text-sm text-slate-600">
-          Reserva importada: quarto, datas e tipo vêm do iCal. Você pode editar nome, hóspedes, horário de check-in e observações; a sincronização não sobrescreve esses campos.
+          Reserva do channel manager: quarto, datas e tipo vêm da integração. Você pode editar nome, hóspedes, horário de check-in e observações.
         </p>
       )}
       <div className="grid gap-3 sm:grid-cols-2">

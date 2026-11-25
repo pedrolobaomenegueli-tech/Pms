@@ -116,10 +116,10 @@ export async function addBlock(_: ActionState, fd: FormData): Promise<ActionStat
   const err = await createBlock(supabase, issue.id, issue, block);
   if (err) return { error: err };
   refresh();
-  return { ok: "Quarto bloqueado. O bloqueio entra na exportação iCal na próxima leitura das plataformas." };
+  return { ok: "Quarto bloqueado no PMS. Enquanto não houver integração, bloqueie também no channel manager." };
 }
 
-/** Cancela o bloqueio (sai da exportação iCal). */
+/** Cancela o bloqueio vinculado ao problema. */
 async function cancelBlock(supabase: Db, issueId: string) {
   const { data } = await supabase.from("maintenance_issues").select("block_reservation_id").eq("id", issueId).single();
   if (!data?.block_reservation_id) return;

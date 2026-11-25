@@ -16,8 +16,6 @@ function res(unit_id: string, check_in: string, check_out: string, extra: Partia
     unit_id,
     source: "airbnb",
     kind: "reserva",
-    feed_id: null,
-    external_uid: null,
     check_in,
     check_out,
     guest_name: null,
@@ -29,9 +27,6 @@ function res(unit_id: string, check_in: string, check_out: string, extra: Partia
     checked_out_at: null,
     check_in_time: null,
     cleaning_done_at: null,
-    ical_summary: null,
-    ical_description: null,
-    last_seen_at: null,
     created_at: "",
     updated_at: "",
     ...extra,
@@ -128,14 +123,13 @@ describe("prioridade da lista do dia", () => {
     expect(l.map((e) => e.reservation.id)).toEqual(["a", "c"]);
   });
 
-  it("ignora bloqueios, canceladas e eco", () => {
+  it("ignora bloqueios e canceladas", () => {
     const l = buildCleaningList({
       day: DAY,
       stays: [
         res("u1", "2026-12-08", DAY, { kind: "bloqueio" }),
         res("u2", "2026-12-08", DAY, { status: "cancelada" }),
         res("u3", "2026-12-08", DAY, { id: "real", source: "airbnb" }),
-        res("u3", "2026-12-08", DAY, { id: "eco", source: "booking" }),
       ],
       pending: [],
       cleanings: [],
@@ -150,10 +144,7 @@ describe("link público da equipe", () => {
     id: "res-123",
     guest_name: "Maria Secreta",
     guests: 4,
-    notes: "telefone 35 99999-1234",
-    external_uid: "HMSECRETO@airbnb.com",
-    ical_description: "Reservation URL: https://www.airbnb.com/hosting/reservations/details/HMSECRETO\nPhone Number (Last 4 Digits): 4821",
-    ical_summary: "Reserved",
+    notes: "telefone 35 99999-1234, código HMSECRETO",
     checked_out_at: "t",
   });
   const next = res("u1", DAY, "2026-12-12", { id: "res-456", guest_name: "João Secreto", check_in_time: "13:30:00", notes: "chega cedo" });
@@ -197,8 +188,8 @@ describe("link público da equipe", () => {
   it("não expõe dados do hóspede nem da reserva", () => {
     const json = JSON.stringify(view) + whatsappMessage(view, "https://x/equipe/tok");
     for (const secret of [
-      "Maria Secreta", "João Secreto", "99999", "4821", "HMSECRETO", "airbnb.com", "res-123", "res-456",
-      "chega cedo", "Reserved", "guest", "phone", "Phone", "notes", "external_uid", "ical",
+      "Maria Secreta", "João Secreto", "99999", "HMSECRETO", "Airbnb", "airbnb", "res-123", "res-456",
+      "chega cedo", "guest", "phone", "notes", "source",
     ]) {
       expect(json).not.toContain(secret);
     }

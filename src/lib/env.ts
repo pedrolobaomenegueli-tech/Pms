@@ -16,9 +16,6 @@ export const env = {
   get serviceRoleKey() {
     return required("SUPABASE_SERVICE_ROLE_KEY");
   },
-  get syncSecret() {
-    return required("SYNC_SECRET");
-  },
   get appUrl() {
     return required("APP_URL").replace(/\/+$/, "");
   },

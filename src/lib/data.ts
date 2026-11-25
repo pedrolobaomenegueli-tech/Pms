@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Feed, Property, Reservation, Task, Unit } from "./types";
+import type { Property, Reservation, Task, Unit } from "./types";
 
 function check<T>(res: { data: T | null; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message);
@@ -33,10 +33,6 @@ export async function loadActiveStays(db: SupabaseClient, from: string, to: stri
     .limit(5000);
   if (unitId) q = q.eq("unit_id", unitId);
   return check<Reservation[]>(await q);
-}
-
-export async function loadFeeds(db: SupabaseClient) {
-  return check<Feed[]>(await db.from("feeds").select("*").order("channel"));
 }
 
 export async function loadTasks(db: SupabaseClient, date: string) {
